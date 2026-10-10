@@ -1,0 +1,36 @@
+[project]
+name = "woeusb-gui-flasher"
+version = "0.1.0"
+description = "Modern GUI for WoeUSB Windows USB creation running universally via Flatpak"
+readme = "README.md"
+license = { text = "GPL-3.0-or-later" }
+authors = [
+    { name = "Cristiano Castro", email = "4948530+castrocristiano@users.noreply.github.com" }
+]
+requires-python = ">=3.11"
+dependencies = [
+    "PySide6>=6.6.0",
+    "pydantic>=2.0",
+]
+
+[project.scripts]
+woeusb-gui = "woeusb_gui_flasher.main:main"
+
+[build-system]
+requires = ["uv_build>=0.12.17,<0.13.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-cov>=5.0.0",
+    "ruff>=0.4.0",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
