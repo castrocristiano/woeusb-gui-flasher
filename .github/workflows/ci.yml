@@ -1,0 +1,266 @@
+name: CI & Auto PR
+
+on:
+  push:
+    branches:
+      - develop
+      - main
+      - 'phase/**'
+      - 'feature/**'
+  pull_request:
+    branches:
+      - develop
+      - main
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  build-and-test:
+    name: Build & Test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          version: "latest"
+          enable-cache: true
+
+      - name: Set up Python
+        run: uv python install 3.12
+
+      - name: Install dependencies
+        run: uv sync --dev
+
+      - name: Run Ruff Linter
+        run: uv run ruff check .
+
+      - name: Run Ruff Formatter Check
+        run: uv run ruff format --check .
+
+      - name: Run Tests with Coverage
+        run: uv run pytest -v --cov=src --cov-report=xml:coverage.xml
+
+      - name: Upload Coverage Report Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage.xml
+          retention-days: 1
+
+  # Job dedicado do SonarQube rodando em container no CI
+  sonarqube:
+    name: SonarQube Scan & Quality Gate
+    needs: [build-and-test]
+    runs-on: ubuntu-latest
+    services:
+      sonarqube:
+        image: sonarqube:10.5-community
+        ports:
+          - 9000:9000
+        env:
+          SONAR_ES_BOOTSTRAP_CHECKS_DISABLE: "true"
+        options: >-
+          --health-cmd "curl -s -f http://localhost:9000/api/system/status | grep -q '\"status\":\"UP\"'"
+          --health-interval 10s
+          --health-timeout 10s
+          --health-retries 30
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Download Coverage Report Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: coverage-report
+
+      - name: Wait for SonarQube Server to be fully ready
+        run: |
+          echo "Aguardando inicialização completa do SonarQube..."
+          for i in {1..60}; do
+            STATUS=$(curl -s http://localhost:9000/api/system/status | grep -Po '"status":"\K[^"]*' || echo "DOWN")
+            if [ "$STATUS" = "UP" ]; then
+              echo "SonarQube está pronto!"
+              break
+            fi
+            echo "Aguardando SonarQube status UP (status atual: $STATUS)... ($i/60)"
+            sleep 5
+          done
+
+      - name: Authenticate and Generate SonarQube Project & Token
+        id: sonar-setup
+        run: |
+          # Altera a senha inicial padrão do admin (admin -> admin1234)
+          curl -s -u admin:admin -X POST "http://localhost:9000/api/users/change_password?login=admin&previousPassword=admin&password=admin1234" || true
+          
+          # Cria o projeto se ainda não existir
+          curl -s -u admin:admin1234 -X POST "http://localhost:9000/api/projects/create?name=woeusb-gui-flasher&project=woeusb-gui-flasher" || true
+          
+          # Gera um token de análise
+          TOKEN_JSON=$(curl -s -u admin:admin1234 -X POST "http://localhost:9000/api/user_tokens/generate?name=ci-token-$(date +%s)")
+          ANALYSIS_TOKEN=$(echo "$TOKEN_JSON" | grep -Po '"token":"\K[^"]*' || echo "")
+          
+          if [ -z "$ANALYSIS_TOKEN" ]; then
+            ANALYSIS_TOKEN="admin1234"
+          fi
+          
+          echo "token=$ANALYSIS_TOKEN" >> $GITHUB_OUTPUT
+
+      - name: SonarQube Community Container Scanner
+        uses: SonarSource/sonarqube-scan-action@v5
+        env:
+          SONAR_TOKEN: ${{ steps.sonar-setup.outputs.token }}
+          SONAR_HOST_URL: "http://localhost:9000"
+        with:
+          args: >
+            -Dsonar.projectKey=woeusb-gui-flasher
+            -Dsonar.sources=src
+            -Dsonar.tests=tests
+            -Dsonar.python.coverage.reportPaths=coverage.xml
+
+      - name: Validate SonarQube Quality Gate
+        uses: SonarSource/sonarqube-quality-gate-action@v1
+        timeout-minutes: 5
+        env:
+          SONAR_TOKEN: ${{ steps.sonar-setup.outputs.token }}
+          SONAR_HOST_URL: "http://localhost:9000"
+
+  # Abre PR de branch de fase ou feature → develop (após build bem-sucedido e aprovação no SonarQube)
+  auto-pr-to-develop:
+    name: Open PR to develop
+    needs: [build-and-test, sonarqube]
+    if: github.event_name == 'push' && (startsWith(github.ref, 'refs/heads/phase/') || startsWith(github.ref, 'refs/heads/feature/'))
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check or create Pull Request to develop
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          BRANCH="${GITHUB_REF#refs/heads/}"
+          COMMITS_AHEAD=$(git log origin/develop..HEAD --oneline 2>/dev/null || git log develop..HEAD --oneline 2>/dev/null || true)
+          if [ -z "$COMMITS_AHEAD" ]; then
+            echo "Nenhum commit novo entre $BRANCH e develop. PR não necessário."
+            exit 0
+          fi
+          EXISTING_PR=$(gh pr list --base develop --head "$BRANCH" --state open --json number --jq '.[0].number')
+          if [ -n "$EXISTING_PR" ]; then
+            echo "Pull Request #$EXISTING_PR já existe de $BRANCH para develop."
+          else
+            echo "Criando Pull Request de $BRANCH para develop..."
+            gh pr create \
+              --base develop \
+              --head "$BRANCH" \
+              --title "feat: $BRANCH" \
+              --body $'### Pull Request Automatizado\n\nEste PR foi aberto automaticamente pela esteira de CI após a conclusão bem-sucedida do build, linting e testes no branch `'"$BRANCH"$'`.\n\n#### Verificações Realizadas\n- [x] Resolução de dependências com `uv`\n- [x] Linter e validação de formatação com `ruff`\n- [x] Execução de testes unitários com `pytest`\n- [x] Quality Gate aprovado no SonarQube'
+          fi
+
+  # Abre PR de develop → main (após build e sonar bem-sucedidos)
+  auto-pr-to-main:
+    name: Open PR to main
+    needs: [build-and-test, sonarqube]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/develop'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check or create Pull Request to main
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          COMMITS_AHEAD=$(git log origin/main..HEAD --oneline 2>/dev/null || git log main..HEAD --oneline 2>/dev/null || true)
+          if [ -z "$COMMITS_AHEAD" ]; then
+            echo "Nenhum commit novo entre develop e main. PR não necessário."
+            exit 0
+          fi
+          EXISTING_PR=$(gh pr list --base main --head develop --state open --json number --jq '.[0].number')
+          if [ -n "$EXISTING_PR" ]; then
+            echo "Pull Request #$EXISTING_PR já existe de develop para main."
+          else
+            echo "Criando Pull Request de develop para main..."
+            gh pr create \
+              --base main \
+              --head develop \
+              --title "chore: merge develop into main" \
+              --body $'### Pull Request Automatizado\n\nEste PR foi aberto automaticamente pela esteira de CI após a conclusão bem-sucedida do build, linting e testes unitários no branch `develop`.\n\n#### Verificações Realizadas\n- [x] Resolução de dependências com `uv`\n- [x] Linter e validação de formatação com `ruff`\n- [x] Execução de testes unitários com `pytest`\n- [x] Quality Gate aprovado no SonarQube'
+          fi
+
+  # Cria Release no GitHub quando código for mergeado na branch main (após build & sonar com sucesso)
+  release-on-main:
+    name: Create GitHub Release
+    needs: [build-and-test, sonarqube]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Determine version tag and create Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          PROJECT_VERSION=$(grep -m1 '^version =' pyproject.toml | sed -E 's/version = "(.*)"/\1/')
+          if [ -z "$PROJECT_VERSION" ]; then
+            PROJECT_VERSION="0.1.0"
+          fi
+
+          LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+          if [ -n "$LAST_TAG" ]; then
+            COMMIT_LOGS=$(git log "${LAST_TAG}..HEAD" --oneline)
+          else
+            COMMIT_LOGS=$(git log -n 20 --oneline)
+          fi
+
+          IS_MAJOR=false
+          if echo "$COMMIT_LOGS" | grep -Ei "(\b(feat|fix|refactor|perf|chore)\!:|BREAKING[ -]CHANGE|\[major\]|breaking)" >/dev/null; then
+            IS_MAJOR=true
+          fi
+
+          IFS='.' read -r MAJOR MINOR PATCH <<< "$PROJECT_VERSION"
+          MAJOR=${MAJOR:-0}
+          MINOR=${MINOR:-1}
+          PATCH=${PATCH:-0}
+
+          if [ "$IS_MAJOR" = true ]; then
+            echo "🚨 Breaking change detectada! Incrementando versão MAJOR."
+            NEW_MAJOR=$((MAJOR + 1))
+            PROJECT_VERSION="${NEW_MAJOR}.0.0"
+            TAG="v${PROJECT_VERSION}"
+          else
+            TAG="v${PROJECT_VERSION}"
+            if git rev-parse "$TAG" >/dev/null 2>&1; then
+              TAG="v${PROJECT_VERSION}-${{ github.run_number }}"
+            fi
+          fi
+
+          if [ "$IS_MAJOR" = true ]; then
+            sed -i -E "s/^version = \".*\"/version = \"${PROJECT_VERSION}\"/" pyproject.toml
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git add pyproject.toml
+            git commit -m "chore(release): bump version to $PROJECT_VERSION [skip ci]" || true
+            git push origin main || true
+          fi
+
+          echo "Criando tag e release para: $TAG"
+          gh release create "$TAG" \
+            --target main \
+            --title "Release $TAG" \
+            --generate-notes
