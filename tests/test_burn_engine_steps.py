@@ -565,4 +565,3 @@ def test_cleanup_mount_strategies(qapp, tmp_path):
     ):
         worker._cleanup_mount(tmp_path)
     assert run.call_args[0][0][0] == "umount"
-

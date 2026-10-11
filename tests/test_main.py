@@ -46,4 +46,3 @@ def test_main_launches_window(monkeypatch, qapp):
     setup.assert_called_once_with(True)
     fake_window.show.assert_called_once()
     assert result == 7
-
