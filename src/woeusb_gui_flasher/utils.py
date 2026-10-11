@@ -114,10 +114,11 @@ def inspect_iso_file(iso_path: Path) -> dict:
                         f_size = int(line[len("Size = ") :].strip())
                     except ValueError:
                         f_size = 0
-                    if current_path.lower().endswith("sources/install.wim"):
+                    normalized_path = current_path.replace("\\", "/").lower()
+                    if normalized_path.endswith("sources/install.wim"):
                         info["has_install_wim"] = True
                         info["install_image_size"] = f_size
-                    elif current_path.lower().endswith("sources/install.esd"):
+                    elif normalized_path.endswith("sources/install.esd"):
                         info["has_install_esd"] = True
                         if not info["has_install_wim"]:
                             info["install_image_size"] = f_size

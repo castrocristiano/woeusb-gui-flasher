@@ -324,7 +324,21 @@ class BurnWorker(QThread):
             (target_mount / "efi" / "boot" / "bootx64.efi").write_bytes(b"efi data")
             return
 
-        cmd = [seven_z, "x", "-bso0", "-bsp1", "-bd", f"-o{target_mount}", iso_path]
+        wim_size = self.config.iso.install_image_size
+        needs_wim_split = (
+            self.config.filesystem == FileSystemType.FAT32
+            and self.config.iso.has_install_wim
+            and wim_size > 4_294_967_295
+        )
+
+        cmd = [seven_z, "x", "-bso0", "-bsp1", "-bd"]
+        if needs_wim_split:
+            self.emit_log(
+                "install.wim > 4 GB: excluindo da extração direta FAT32 para evitar erro de limite de 4 GB..."
+            )
+            cmd.extend(["-xr!install.wim", "-xr!install.esd"])
+        cmd.extend([f"-o{target_mount}", iso_path])
+
         process = subprocess.Popen(
             cmd,
             stdout=subprocess.PIPE,
@@ -372,17 +386,18 @@ class BurnWorker(QThread):
     def _handle_wim_split(self, target_mount: Path) -> None:
         """Splits install.wim if it exceeds 4 GB on a FAT32 filesystem."""
         sources_dir = target_mount / "sources"
-        install_wim = sources_dir / "install.wim"
+        sources_dir.mkdir(parents=True, exist_ok=True)
+        dest_swm = str(sources_dir / "install.swm")
 
-        # Check in target mount or inspect from ISO
-        wim_size = 0
-        if install_wim.is_file():
-            wim_size = install_wim.stat().st_size
-        else:
-            wim_size = self.config.iso.install_image_size
-
+        wim_size = self.config.iso.install_image_size
         max_fat32_size = 4_294_967_295  # 4 GB - 1 byte
-        if wim_size <= max_fat32_size:
+
+        # Check if already present on target or in ISO
+        existing_wim = sources_dir / "install.wim"
+        if existing_wim.is_file():
+            wim_size = existing_wim.stat().st_size
+
+        if wim_size <= max_fat32_size and not existing_wim.is_file():
             self.emit_log(
                 "install.wim não ultrapassa o limite de 4 GB do FAT32. Divisão desnecessária."
             )
@@ -393,39 +408,94 @@ class BurnWorker(QThread):
         )
 
         wimlib = find_binary("wimlib-imagex")
+        seven_z = find_binary("7z")
         if not wimlib and not self.dry_run:
             raise FileNotFoundError(
                 "O utilitário 'wimlib-imagex' é necessário para dividir arquivos WIM > 4 GB no FAT32."
             )
 
-        dest_swm = str(sources_dir / "install.swm")
-
         if self.dry_run:
-            self.emit_log(f"[DRY-RUN] wimlib-imagex split {install_wim} {dest_swm} 3800")
+            self.emit_log(f"[DRY-RUN] wimlib-imagex split install.wim {dest_swm} 3800")
             (sources_dir / "install.swm").write_bytes(b"swm1")
             (sources_dir / "install2.swm").write_bytes(b"swm2")
-            if install_wim.is_file():
-                install_wim.unlink(missing_ok=True)
+            if existing_wim.is_file():
+                existing_wim.unlink(missing_ok=True)
             return
 
-        cmd = [wimlib, "split", str(install_wim), dest_swm, "3800"]
-        self.emit_log(f"Executando: {' '.join(cmd)}")
-        process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-        self._active_process = process
-        stdout, stderr = process.communicate()
-        self._active_process = None
+        # Use /var/tmp (backed by disk) for temporary storage
+        temp_dir = Path("/var/tmp/woeusb_temp")
+        temp_dir.mkdir(parents=True, exist_ok=True)
+        temp_wim = temp_dir / "install.wim"
 
-        if self.is_cancelled():
-            return
+        try:
+            if existing_wim.is_file():
+                # Already on drive (e.g. from previous run or partial write)
+                wim_to_split = existing_wim
+            else:
+                # Extract install.wim from ISO to /var/tmp
+                self.emit_log(
+                    f"Extraindo install.wim para armazenamento temporário em {temp_dir}..."
+                )
+                extract_cmd = [
+                    seven_z,
+                    "e",
+                    "-bso0",
+                    "-bsp1",
+                    "-bd",
+                    f"-o{temp_dir}",
+                    "-y",
+                    str(self.config.iso.file_path),
+                    "sources/install.wim",
+                ]
+                proc = subprocess.Popen(
+                    extract_cmd,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.STDOUT,
+                    text=True,
+                    bufsize=1,
+                    universal_newlines=True,
+                )
+                self._active_process = proc
+                if proc.stdout:
+                    for line in iter(proc.stdout.readline, ""):
+                        if self.is_cancelled():
+                            proc.terminate()
+                            break
+                        clean = line.strip()
+                        if clean and "%" not in clean:
+                            self.emit_log(clean)
+                proc.wait()
+                self._active_process = None
+                if self.is_cancelled():
+                    return
+                if proc.returncode != 0:
+                    raise RuntimeError(f"Falha ao extrair install.wim: código {proc.returncode}")
+                wim_to_split = temp_wim
 
-        if process.returncode != 0:
-            raise RuntimeError(f"Falha ao dividir install.wim: {stderr or stdout}")
+            self.emit_log(
+                "Dividindo install.wim em volumes .swm de 3800 MB diretamente no pendrive..."
+            )
+            cmd = [wimlib, "split", str(wim_to_split), dest_swm, "3800"]
+            self.emit_log(f"Executando: {' '.join(cmd)}")
+            process = subprocess.Popen(
+                cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
+            )
+            self._active_process = process
+            stdout, stderr = process.communicate()
+            self._active_process = None
 
-        self.emit_log(
-            "Divisão do install.wim concluída com sucesso! Removendo arquivo .wim original..."
-        )
-        if install_wim.is_file():
-            install_wim.unlink(missing_ok=True)
+            if self.is_cancelled():
+                return
+
+            if process.returncode != 0:
+                raise RuntimeError(f"Falha ao dividir install.wim: {stderr or stdout}")
+
+            self.emit_log("Divisão do install.wim concluída com sucesso! Volumes .swm criados.")
+            if existing_wim.is_file():
+                existing_wim.unlink(missing_ok=True)
+        finally:
+            if temp_wim.is_file():
+                temp_wim.unlink(missing_ok=True)
 
     def _configure_bootloader(self, target_mount: Path) -> None:
         """Verifies and configures UEFI bootloaders."""
