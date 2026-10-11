@@ -1,123 +1,191 @@
-# WoeUSB-GUI (Windows USB Flasher)
+# WoeUSB-GUI (Windows Bootable USB Flasher)
 
-Aplicação desktop moderna em Python (**PySide6 / Qt 6**) para criação de pendrives inicializáveis do Windows no Linux (BigLinux, Arch Linux, Manjaro, Ubuntu, Debian, Fedora), empacotada universalmente via **Flatpak** (`org.woeusb.WoeUsbGui`).
+A modern, reliable Linux desktop application built with Python and **PySide6 / Qt 6** for creating bootable Windows installation USB drives from official ISO disk images. Designed for all major Linux distributions (Arch Linux, Fedora, Ubuntu, Debian, BigLinux, Manjaro) and universally packaged via **Flatpak** (`org.woeusb.WoeUsbGui`).
 
-![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)
+[![Flathub](https://img.shields.io/badge/Flathub-org.woeusb.WoeUsbGui-blue?logo=flathub)](https://flathub.org/apps/org.woeusb.WoeUsbGui)
+[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
 ![Python: >=3.11](https://img.shields.io/badge/Python->=3.11-green.svg)
 ![Qt: 6 (PySide6)](https://img.shields.io/badge/Qt-6-green.svg)
-![Flatpak: Ready](https://img.shields.io/badge/Flatpak-Flathub%20Ready-orange.svg)
+![AppStream: Validated](https://img.shields.io/badge/AppStream-Validated-brightgreen.svg)
+
+🌐 **Language**: **English** | [Português (Brasil)](README.pt-BR.md)
 
 ---
 
-## ✨ Principais Funcionalidades
+## 📸 Interface
 
-- **Segurança Absoluta contra Destruição de Dados**:
-  - Detecção rigorosa de dispositivos via D-Bus `UDisks2` e `lsblk`.
-  - Exibição **estrita** de dispositivos USB removíveis com $\ge$ 2 GB de capacidade.
-  - Bloqueio e ocultação incondicional de partições e discos de sistema (`/`, `/boot`, `/home`, etc.).
-  - Diálogo modal de confirmação explícito detalhando modelo, caminho e aviso de perda de dados.
-- **Extração Segura em Espaço de Usuário**:
-  - Extração direta dos arquivos da ISO do Windows utilizando `7z` (p7zip), eliminando a necessidade de comandos inseguros de root (`mount -o loop`).
-- **Suporte Automático a UEFI Secure Boot (FAT32)**:
-  - Divisão automática de arquivos `install.wim` maiores que 4 GB em volumes `.swm` via `wimlib-imagex split`.
-  - Configuração automática de bootloader UEFI (`/efi/boot/bootx64.efi`).
-- **Interface Gráfica Moderna e Responsiva**:
-  - Motor assíncrono em thread dedicada (`QThread`) para manter a UI sempre fluida (60 FPS).
-  - Barra de progresso suave, cálculo de velocidade estimada e etapas em tempo real.
-  - Gaveta expansível de logs detalhados com opção de cópia para a área de transferência.
-  - Cancelamento seguro a qualquer momento com encerramento de subprocessos e desmontagem limpa.
+![WoeUSB-GUI Main Interface](assets/screenshots/main-window.png)
 
 ---
 
-## 🚀 Como Executar
+## ✨ Key Features
 
-### 1. Executando Localmente (Desenvolvimento)
+- **Strict Data Protection & Drive Safety**:
+  - Device enumeration powered by D-Bus `UDisks2` and `lsblk`.
+  - Filters and displays **only** removable USB drives with capacity $\ge$ 2 GB.
+  - Automatically hides and protects all internal storage drives, system partitions (`/`, `/boot`, `/home`), and swap devices.
+  - Mandatory confirmation modal showing device vendor, model, capacity, and path before formatting.
+- **Unprivileged User-Space ISO Extraction**:
+  - Direct ISO extraction utilizing `7z` (`p7zip`), eliminating risky elevated loop mounts (`mount -o loop`).
+- **Automatic UEFI Secure Boot Compatibility (FAT32)**:
+  - Formats drives to FAT32 with standard UEFI bootloader structure (`/efi/boot/bootx64.efi`).
+  - Automatically splits `install.wim` files larger than 4 GB into `.swm` chunks via `wimlib-imagex split`, overcoming the FAT32 single-file size barrier seamlessly.
+- **Modern & Responsive Qt 6 GUI**:
+  - Fully asynchronous operation via background `QThread` workers, maintaining smooth 60 FPS UI responsiveness.
+  - Real-time progress bar, phase indicators, and transfer speed estimation.
+  - Expandable detailed log drawer with one-click clipboard copying.
+  - Safe task cancellation with clean process termination and unmounting.
+- **Flathub Quality Compliant**:
+  - Strict sandboxing adhering to Flathub Quality Guidelines.
+  - Wayland-native with X11 fallback and hardware-accelerated rendering.
 
-Requisitos:
-- Python 3.11+
-- [uv](https://docs.astral.sh/uv/) (ou `venv` + `pip`)
-- Dependências de sistema: `p7zip` (`7z`), `wimlib`, `dosfstools` (`mkfs.vfat`), `ntfs-3g`, `udisks2`
+---
+
+## 🚀 Installation & Usage
+
+### 1. Install via Flathub (Recommended)
+
+Once published on Flathub, install and launch WoeUSB-GUI using:
 
 ```bash
-# Clonar o repositório
-git clone https://github.com/castrocristiano/woeusb-gui-flasher.git
-cd woeusb-gui-flasher
+# Install from Flathub
+flatpak install flathub org.woeusb.WoeUsbGui
 
-# Sincronizar o ambiente com uv
-uv sync
-
-# Iniciar a aplicação
-uv run woeusb-gui
-# ou pelo script auxiliar:
-./run.sh
-```
-
-### 2. Construindo e Testando com Flatpak
-
-O aplicativo foi projetado e validado em conformidade total com as diretrizes do **Flathub Quality Guidelines**:
-
-```bash
-# Instalar runtime e SDK do GNOME 47
-flatpak install flathub org.gnome.Platform//47 org.gnome.Sdk//47
-
-# Compilar o pacote Flatpak
-flatpak-builder --force-clean --user --install build-dir org.woeusb.WoeUsbGui.yml
-
-# Executar o Flatpak instalado
+# Run the application
 flatpak run org.woeusb.WoeUsbGui
 ```
 
----
+### 2. Building and Testing with Flatpak Locally
 
-## 🧪 Testes Automatizados
-
-O projeto conta com uma suíte abrangente de testes unitários, testes de contrato e integração de interface gráfica (`pytest`, `pytest-qt`):
+WoeUSB-GUI uses the KDE 6.6 runtime (`org.kde.Platform`), which provides full PySide6 and Qt 6 support:
 
 ```bash
-# Executar todos os testes em modo headless (offscreen)
-uv run pytest
+# 1. Install required KDE 6.6 runtime and SDK
+flatpak install flathub org.kde.Platform//6.6 org.kde.Sdk//6.6
 
-# Executar com relatório de cobertura
-uv run pytest --cov=woeusb_gui_flasher
+# 2. Build and install into local user repository
+flatpak-builder --force-clean --user --install build-dir org.woeusb.WoeUsbGui.yml
+
+# 3. Launch the installed Flatpak
+flatpak run org.woeusb.WoeUsbGui
+```
+
+### 3. Running from Source (Development)
+
+#### Prerequisites:
+- Python 3.11+
+- [uv](https://docs.astral.sh/uv/) (or `venv` + `pip`)
+- System dependencies: `p7zip` (`7z`), `wimlib`, `dosfstools` (`mkfs.vfat`), `udisks2`
+
+```bash
+# Clone the repository
+git clone https://github.com/castrocristiano/woeusb-gui-flasher.git
+cd woeusb-gui-flasher
+
+# Sync dependencies using uv
+uv sync
+
+# Launch the application
+uv run woeusb-gui
+# Or via the convenience launcher script:
+./run.sh
 ```
 
 ---
 
-## 📁 Estrutura do Repositório
+## 🔒 Sandboxing & Security Permissions
+
+To operate securely inside the Flatpak sandbox while managing USB storage, WoeUSB-GUI requires specific permissions:
+
+| Permission | Reason |
+| :--- | :--- |
+| `--system-talk-name=org.freedesktop.UDisks2` | Enumerates removable drives, formats partitions, and handles mounts safely through the host's UDisks2 service without root privileges. |
+| `--filesystem=/run/media:rw` | Writes extracted Windows installation files to USB mount points created by UDisks2. |
+| `--filesystem=host:ro` | Allows the user to select Windows `.iso` images stored in their home directory, Downloads, or secondary disks. |
+| `--socket=wayland` / `--socket=fallback-x11` | Provides graphical interface display on both modern Wayland and X11 desktop sessions. |
+| `--device=dri` | Enables hardware-accelerated GUI rendering. |
+
+For a comprehensive explanation of permissions and Flathub policies, see [docs/FLATHUB.md](docs/FLATHUB.md).
+
+---
+
+## 🧪 Testing & Validation
+
+### Automated Test Suite
+
+The project includes unit, contract, and UI tests using `pytest` and `pytest-qt`:
+
+```bash
+# Run tests in offscreen mode
+uv run pytest
+
+# Run tests with code coverage report
+uv run pytest --cov=woeusb_gui_flasher
+```
+
+### AppStream & Desktop Metadata Validation
+
+Validate metadata integrity against Freedesktop and Flathub quality specifications:
+
+```bash
+# Validate Desktop entry
+desktop-file-validate assets/org.woeusb.WoeUsbGui.desktop
+
+# Validate AppStream MetaInfo (pedantic mode)
+appstreamcli validate --no-net --pedantic assets/org.woeusb.WoeUsbGui.metainfo.xml
+```
+
+---
+
+## 📁 Repository Structure
 
 ```
 woeusb-gui-flasher/
 ├── assets/
-│   ├── org.woeusb.WoeUsbGui.desktop    # Integração de lançador desktop
-│   ├── org.woeusb.WoeUsbGui.metainfo.xml# Metadados AppStream / Flathub
-│   └── org.woeusb.WoeUsbGui.svg        # Ícone vetorial da aplicação
-├── org.woeusb.WoeUsbGui.yml            # Manifesto Flatpak
-├── pyproject.toml                      # Metadados do pacote Python e dependências
-├── run.sh                              # Launcher shell
+│   ├── org.woeusb.WoeUsbGui.desktop     # Desktop launcher integration
+│   ├── org.woeusb.WoeUsbGui.metainfo.xml # AppStream / Flathub metadata
+│   ├── org.woeusb.WoeUsbGui.svg         # Application vector icon
+│   └── screenshots/
+│       └── main-window.png              # UI screenshot for Flathub & AppStream
+├── docs/
+│   └── FLATHUB.md                       # Comprehensive Flathub packaging & review guide
 ├── specs/
-│   └── 001-woeusb-gui/                 # Artefatos Spec-Driven Development
-│       ├── spec.md                     # Especificação funcional
-│       ├── plan.md                     # Arquitetura técnica e contratos
-│       ├── tasks.md                    # Plano de implementação executável
-│       └── quickstart.md               # Guia de validação rápida
+│   └── 001-woeusb-gui/                  # Spec-Driven Development artifacts
 ├── src/
 │   └── woeusb_gui_flasher/
-│       ├── __init__.py
-│       ├── __main__.py
-│       ├── main.py                     # Entry point da aplicação
-│       ├── models.py                   # Entidades de domínio e dataclasses
-│       ├── utils.py                    # Formatação de bytes e helpers de subprocesso
-│       ├── disk_manager.py             # Descoberta segura de discos (UDisks2/lsblk)
-│       ├── burn_engine.py              # Motor assíncrono de gravação (BurnWorker QThread)
+│       ├── main.py                      # Application entry point
+│       ├── models.py                    # Domain models and dataclasses
+│       ├── utils.py                     # Byte formatting and subprocess helpers
+│       ├── disk_manager.py              # Safe disk discovery via UDisks2/lsblk
+│       ├── burn_engine.py               # Asynchronous burning worker (QThread)
 │       └── ui/
-│           ├── __init__.py
-│           ├── components.py           # Componentes visuais e cards reutilizáveis
-│           └── main_window.py          # Janela principal e diálogo de confirmação
-└── tests/                              # Suíte completa de testes unitários e de contrato
+│           ├── components.py            # Reusable UI widgets and cards
+│           └── main_window.py           # Main window and confirmation modal
+├── tests/                               # Comprehensive unit and UI test suite
+├── CONTRIBUTING.md                      # Contribution guidelines
+├── org.woeusb.WoeUsbGui.yml             # Flatpak build manifest
+└── pyproject.toml                       # Python package configuration
 ```
 
 ---
 
-## 📜 Licença
+## 🤝 Contributing
 
-Distribuído sob a licença **GPL-3.0-or-later**. Consulte o arquivo de licença para mais informações.
+Contributions are welcome! Please check [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines on code style, tests, and the pull request process.
+
+---
+
+## 🤖 Generative AI Disclosure
+
+In full adherence to the [Flathub Generative AI Policy](https://docs.flathub.org/docs/for-app-authors/requirements/):
+
+- **Application Code & Documentation**: Parts of the codebase, test suites, and documentation were drafted with the assistance of Generative AI tools (LLM coding assistants) under the direct supervision, architectural guidance, and review of the human author.
+- **Human Verification & Safety**: All critical logic—particularly hardware drive enumeration safety filters, UDisks2 communication, and WIM splitting routines—has been audited, tested, and validated by the maintainer.
+- **Flathub Manifest & Packaging**: The Flatpak manifest (`org.woeusb.WoeUsbGui.yml`) is curated, tested locally, and maintained by a human developer. In compliance with Flathub submission rules, all Flathub pull requests, commit messages, and review communications are conducted manually by human maintainers without automated bots.
+
+---
+
+## 📜 License
+
+This project is licensed under the **GPL-3.0-or-later** license. See the [LICENSE](LICENSE) file for details. AppStream metadata is licensed under **CC0-1.0**.
+

@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import logging
 import subprocess
+from pathlib import Path
 from typing import Any
 
 from woeusb_gui_flasher.models import StorageDevice
@@ -158,6 +159,7 @@ class DiskManager:
     def unmount_device_partitions(self, device: StorageDevice) -> bool:
         """Unmounts all mounted partitions belonging to the device."""
         udisksctl = find_binary("udisksctl")
+        gdbus = find_binary("gdbus")
         umount = find_binary("umount")
 
         success = True
@@ -177,6 +179,30 @@ class DiskManager:
                     continue
                 # If error is 'not mounted', that's fine
                 if "not mounted" in res.stderr.lower():
+                    continue
+            elif gdbus:
+                part_name = Path(part).name
+                res = subprocess.run(
+                    [
+                        gdbus,
+                        "call",
+                        "--system",
+                        "--dest",
+                        "org.freedesktop.UDisks2",
+                        "--object-path",
+                        f"/org/freedesktop/UDisks2/block_devices/{part_name}",
+                        "--method",
+                        "org.freedesktop.UDisks2.Filesystem.Unmount",
+                        "{}",
+                    ],
+                    capture_output=True,
+                    text=True,
+                    check=False,
+                )
+                if res.returncode == 0:
+                    logger.info("Successfully unmounted %s via gdbus UDisks2", part)
+                    continue
+                if "notmounted" in (res.stderr.lower() or res.stdout.lower()):
                     continue
 
             if umount:

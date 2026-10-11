@@ -1,12 +1,11 @@
 [Desktop Entry]
 Name=WoeUSB-GUI
-Comment=Universal Windows USB Bootable Flasher for Linux
+Comment=Universal Windows USB bootable flasher for Linux
 Exec=woeusb-gui
 Icon=org.woeusb.WoeUsbGui
 Terminal=false
 Type=Application
-Categories=Utility;System;Archiving;
-Keywords=windows;usb;boot;flasher;iso;woeusb;
+Categories=Utility;Archiving;Qt;
+Keywords=windows;usb;boot;flasher;iso;woeusb;uefi;
 StartupNotify=true
 StartupWMClass=woeusb-gui
-

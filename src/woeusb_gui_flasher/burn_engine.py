@@ -177,6 +177,7 @@ class BurnWorker(QThread):
 
         # Step A: Wipe filesystem signatures on first partition or device
         target_part = f"{device_path}1" if not device_path.endswith("1") else device_path
+        self._target_part = target_part
         self.emit_log(f"Formatando partição {target_part} como {fs_type.value}...")
 
         # Use mkfs.vfat / mkfs.ntfs
@@ -185,11 +186,13 @@ class BurnWorker(QThread):
         else:
             mkfs_cmd = ["mkfs.ntfs", "-f", "-L", label, target_part]
 
-        # Try udisksctl format first for Polkit permissions
+        # Try udisksctl or gdbus UDisks2 first for Polkit permissions
         udisksctl = find_binary("udisksctl")
+        gdbus = find_binary("gdbus")
+        fs_arg = "vfat" if fs_type == FileSystemType.FAT32 else "ntfs"
         formatted = False
+
         if udisksctl:
-            fs_arg = "vfat" if fs_type == FileSystemType.FAT32 else "ntfs"
             res = subprocess.run(
                 [
                     udisksctl,
@@ -209,6 +212,31 @@ class BurnWorker(QThread):
             if res.returncode == 0:
                 formatted = True
                 self.emit_log(f"Partição formatada via udisksctl: {res.stdout.strip()}")
+        elif gdbus:
+            part_name = Path(target_part).name
+            res = subprocess.run(
+                [
+                    gdbus,
+                    "call",
+                    "--system",
+                    "--dest",
+                    "org.freedesktop.UDisks2",
+                    "--object-path",
+                    f"/org/freedesktop/UDisks2/block_devices/{part_name}",
+                    "--method",
+                    "org.freedesktop.UDisks2.Block.Format",
+                    fs_arg,
+                    f"{{'label': <'{label}'>}}",
+                ],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            if res.returncode == 0:
+                formatted = True
+                self.emit_log(f"Partição formatada via UDisks2 (D-Bus): {target_part}")
+            else:
+                self.emit_log(f"Aviso UDisks2 format: {res.stderr.strip() or res.stdout.strip()}")
 
         if not formatted:
             # Fallback to direct mkfs command
@@ -225,6 +253,8 @@ class BurnWorker(QThread):
     def _mount_partition(self, part_path: str) -> Path:
         """Mounts the formatted partition and returns the mount directory."""
         udisksctl = find_binary("udisksctl")
+        gdbus = find_binary("gdbus")
+
         if udisksctl:
             res = subprocess.run(
                 [udisksctl, "mount", "-b", part_path, "--no-user-interaction"],
@@ -238,6 +268,33 @@ class BurnWorker(QThread):
                 if match:
                     mount_path = Path(match.group(1))
                     self.emit_log(f"Montado via udisksctl em {mount_path}")
+                    self._temp_mount_dir = mount_path
+                    return mount_path
+        elif gdbus:
+            part_name = Path(part_path).name
+            res = subprocess.run(
+                [
+                    gdbus,
+                    "call",
+                    "--system",
+                    "--dest",
+                    "org.freedesktop.UDisks2",
+                    "--object-path",
+                    f"/org/freedesktop/UDisks2/block_devices/{part_name}",
+                    "--method",
+                    "org.freedesktop.UDisks2.Filesystem.Mount",
+                    "{}",
+                ],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            if res.returncode == 0:
+                # Output like: ('/run/media/user/WININSTALL',)
+                match = re.search(r"'(/\S+)'", res.stdout)
+                if match:
+                    mount_path = Path(match.group(1))
+                    self.emit_log(f"Montado via UDisks2 (D-Bus) em {mount_path}")
                     self._temp_mount_dir = mount_path
                     return mount_path
 
@@ -394,8 +451,27 @@ class BurnWorker(QThread):
     def _cleanup_mount(self, mount_dir: Path) -> None:
         """Unmounts the temporary mount directory."""
         udisksctl = find_binary("udisksctl")
+        gdbus = find_binary("gdbus")
+
         if udisksctl:
             subprocess.run([udisksctl, "unmount", "-m", str(mount_dir)], check=False)
+        elif gdbus and self._target_part:
+            part_name = Path(self._target_part).name
+            subprocess.run(
+                [
+                    gdbus,
+                    "call",
+                    "--system",
+                    "--dest",
+                    "org.freedesktop.UDisks2",
+                    "--object-path",
+                    f"/org/freedesktop/UDisks2/block_devices/{part_name}",
+                    "--method",
+                    "org.freedesktop.UDisks2.Filesystem.Unmount",
+                    "{}",
+                ],
+                check=False,
+            )
         else:
             subprocess.run(["umount", str(mount_dir)], check=False)
 
@@ -437,4 +513,3 @@ if __name__ == "__main__":
     worker.log_line_emitted.connect(lambda l: print(f"LOG: {l}"))
     worker.operation_finished.connect(lambda ok, msg: print(f"FINISHED: ok={ok}, msg={msg}"))
     worker.run()
-

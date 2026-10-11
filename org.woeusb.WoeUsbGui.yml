@@ -29,11 +29,24 @@ modules:
     buildsystem: simple
     build-commands:
       - make -j$FLATPAK_BUILDER_N_JOBS 7z
-      - make install DEST_DIR=/app DEST_BIN=/app/bin DEST_SHARE=/app/lib/p7zip DEST_MAN=/app/share/man
+      - make install DEST_HOME=/app DEST_BIN=/app/bin DEST_SHARE=/app/lib/p7zip DEST_MAN=/app/share/man
     sources:
       - type: archive
         url: https://github.com/p7zip-project/p7zip/archive/v17.05.tar.gz
         sha256: d2788f892571058c08d27095c22154579dfefb807ebe357d145ab2ddddefb1a6
+
+  - name: python3-pyside6
+    buildsystem: simple
+    build-commands:
+      - pip3 install --no-index --find-links="file://${PWD}" --prefix=/app PySide6_Essentials shiboken6
+    sources:
+      - type: file
+        url: https://files.pythonhosted.org/packages/2a/b3/afb282bbc6f94b4ffaf28c0575adcd7dc82f5cec85269c7bc8aea5c3c2b2/shiboken6-6.6.3-cp38-abi3-manylinux_2_28_x86_64.whl
+        sha256: 068bb9d9f49b70f36bbd673013e032ac6c9cde5f771b134bd04611330867d9d7
+
+      - type: file
+        url: https://files.pythonhosted.org/packages/93/12/a5afa4ad3cc40625ef8432ce321a6d9d5406f0d1ae4a8cddee80f98c8597/PySide6_Essentials-6.6.3-cp38-abi3-manylinux_2_28_x86_64.whl
+        sha256: d3553641712e2056808c1bf4504ac3343da9aeb671e33933d253e4e807f2eeaf
 
   - name: woeusb-gui
     buildsystem: simple

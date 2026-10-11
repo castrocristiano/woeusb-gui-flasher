@@ -79,4 +79,3 @@ def test_burn_worker_signals_contract(qapp, tmp_path):
     assert any(s[0] == "log" and "Iniciando" in s[1] for s in signals_received)
     assert any(s[0] == "progress" and s[1] == 25.0 for s in signals_received)
     assert any(s[0] == "status" and s[1] == "Operação em andamento" for s in signals_received)
-

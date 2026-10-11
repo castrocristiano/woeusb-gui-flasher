@@ -96,4 +96,3 @@ def test_parse_lsblk_json_output():
     assert eligible[0].path == "/dev/sdd"
     assert eligible[0].vendor == "SanDisk"
     assert eligible[0].model == "Cruzer Blade"
-
