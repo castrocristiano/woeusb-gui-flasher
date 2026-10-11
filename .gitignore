@@ -39,6 +39,9 @@ coverage.xml
 # Flatpak build artifacts
 .flatpak-builder/
 builddir/
+build-dir/
+repo/
+.flatpak/
 *.flatpak
 
 # Environment & Secrets

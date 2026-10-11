@@ -4,36 +4,41 @@
 
 **Input**: Feature specification from `/specs/001-woeusb-gui/spec.md`
 
+**Note**: This template is filled in by the `/speckit-plan` command; its definition describes the execution workflow.
+
 ---
 
 ## Summary
 
-O objetivo deste projeto é implementar uma aplicação desktop gráfica moderna em **Python 3** e **PySide6 (Qt 6)** empacotada universalmente via **Flatpak** (`org.woeusb.WoeUsbGui`) para qualquer distribuição Linux. 
+O objetivo deste projeto é implementar uma aplicação desktop gráfica moderna em **Python 3** e **PySide6 (Qt 6)** empacotada universalmente via **Flatpak** (`org.woeusb.WoeUsbGui`) para qualquer distribuição Linux.
 
-A aplicação soluciona o desafio de criar pendrives bootáveis do Windows no Linux (onde imagens ISO com `install.wim` > 4 GB não cabem em FAT32 sem divisão) combinando:
-1. **Comunicação D-Bus com `UDisks2`**: Para formatação segura de pendrives autorizada pelo Polkit nativo do sistema sem quebrar o sandbox do Flatpak.
-2. **Extração de ISO em Espaço de Usuário (`7z`)**: Copiando os arquivos diretamente para o pendrive montado sem necessidade de `mount -o loop` (bloqueado em containers).
-3. **Divisão de WIM (`wimlib-imagex`)**: Integrado no Flatpak para repartir imagens de instalação maiores que 4 GB em arquivos `.swm` compatíveis com FAT32 e inicializáveis via UEFI e Legacy BIOS.
-4. **Interface Gráfica Reativa em PySide6**: Com atualização de progresso em tempo real, painel de logs expansível e salvaguarda absoluta contra formatação acidental de discos de sistema.
+A aplicação soluciona o desafio de criar pendrives inicializáveis do Windows no Linux (onde imagens ISO com `install.wim` > 4 GB não cabem em partições FAT32 sem divisão) através de:
+1. **Comunicação D-Bus com `UDisks2`**: Para particionamento e formatação segura autorizada pelo Polkit do host sem violar o isolamento do sandbox Flatpak.
+2. **Extração de ISO em Espaço de Usuário (`7z`)**: Copiando os arquivos diretamente para o ponto de montagem do pendrive sem requerer privilégios de kernel para `mount -o loop`.
+3. **Divisão de WIM (`wimlib-imagex`)**: Integrada no Flatpak para repartir imagens maiores que 4 GB em arquivos `.swm`, mantendo compatibilidade nativa com UEFI Secure Boot e Legacy BIOS.
+4. **Interface Gráfica Reativa em PySide6**: Com atualização de progresso contínua (0 a 100%), painel de logs expansível e salvaguarda absoluta contra formatação acidental de discos de sistema.
 
 ---
 
 ## Technical Context
 
-- **Language/Version**: Python 3.11+
-- **GUI Framework**: PySide6 (Qt 6.6+)
+- **Language/Version**: Python 3.11+ (Python 3.12 padrão do ambiente)
+- **GUI Framework**: PySide6 (Qt 6.6+) com suporte a Wayland e X11
 - **Packaging/Runtime**: Flatpak (`org.kde.Platform` 6.x ou `org.freedesktop.Platform` 24.08)
 - **Primary Dependencies**:
-  - `PySide6` (Interface gráfica nativa com suporte a Wayland e X11)
-  - `p7zip` / `7z` (Extração rápida de UDF/ISO em espaço de usuário)
+  - `PySide6` (Interface gráfica nativa com estilos Breeze/Desktop)
+  - `p7zip` / `7z` (Extração em espaço de usuário de imagens UDF/ISO)
   - `wimlib-imagex` (Divisão de arquivos `.wim` em `.swm`)
-  - `dbus-python` / `dasbus` / `Gio` (Comunicação com `org.freedesktop.UDisks2`)
-  - `udisksctl` / `lsblk`
+  - `dasbus` / `Gio` / `dbus-python` (Comunicação com `org.freedesktop.UDisks2`)
+- **Storage / Devices**: Dispositivos de bloco removíveis USB via `UDisks2`
+- **Testing**: `pytest`, `pytest-cov`, `pytest-qt` (para componentes gráficos)
 - **Target Platform**: Qualquer distribuição Linux com Flatpak (BigLinux, Fedora, Ubuntu, Arch, Debian, openSUSE, etc.)
-- **Performance Goals**: 60 FPS na interface durante operações de I/O, atualização de progresso suave, inicialização do app em < 1 segundo.
-- **Security & Constraints**:
-  - Flatpak sandbox compliance (`--system-talk-name=org.freedesktop.UDisks2`, `--filesystem=host`, `--socket=wayland`, `--socket=fallback-x11`).
-  - Proteção total contra gravação em discos de sistema (`/`, `/boot`, `/home`, `[SWAP]`, NVMe/SATA internos).
+- **Project Type**: Desktop Application (PySide6 / Qt 6)
+- **Performance Goals**: Interface fluida em 60 FPS durante operações intensivas de I/O, atualização de progresso suave, inicialização do aplicativo em < 1 segundo.
+- **Constraints**:
+  - Conformidade estrita com o sandbox Flatpak (`--system-talk-name=org.freedesktop.UDisks2`, `--filesystem=host:ro`, `--filesystem=/run/media:rw`, `--device=dri`).
+  - Proteção inegociável contra gravação em discos internos e partições de sistema (`/`, `/boot`, `/home`, `[SWAP]`).
+- **Scale/Scope**: Ferramenta desktop autossuficiente focada em gravação confiável de instaladores Windows 7/8/10/11.
 
 ---
 
@@ -43,165 +48,77 @@ A aplicação soluciona o desafio de criar pendrives bootáveis do Windows no Li
 
 | Princípio Constitucional | Status | Justificativa / Validação |
 | :--- | :---: | :--- |
-| **I. Safety & Non-Destructive Protection** | **PASSED** | O `disk_manager` filtra estritamente por dispositivos removíveis USB (`TRAN=usb` / `RM=true`) e exclui qualquer dispositivo contendo montagens de sistema. Modal de confirmação obrigatório antes de qualquer ação. |
-| **II. Universal Linux Execution via Flatpak** | **PASSED** | A arquitetura desacopla a dependência de `mount -o loop` do kernel utilizando extração de ISO via espaço de usuário (`7z`) e formatação mediada por D-Bus `UDisks2`. Manifesto Flatpak oficial incluso. |
-| **III. Responsive & Asynchronous Architecture** | **PASSED** | Todo o processo de queima/cópia e escaneamento roda em `QThread` desacoplada da thread principal da GUI (`signals/slots`). |
-| **IV. Observability & User Feedback** | **PASSED** | Emissão contínua de sinais de progresso (0 a 100%), etapas descritivas em português e gaveta de logs recolhível com auto-scroll. |
-| **V. Native Linux Desktop Integration** | **PASSED** | PySide6 com styling Breeze/Desktop, metainfo AppStream e arquivo `.desktop` com ícone SVG. |
+| **I. Safety & Non-Destructive Protection (NON-NEGOTIABLE)** | **PASSED** | Apenas unidades removíveis USB (`TRAN=usb` / `RM=true`) são elegíveis. Unidades de sistema são categoricamente omitidas. Confirmação modal obrigatória detalhando caminho, tamanho e modelo antes de qualquer operação destrutiva. |
+| **II. Universal Linux Execution via Flatpak** | **PASSED** | Desacoplamento total de `mount -o loop` usando extração user-space com `7z`. Particionamento mediado por D-Bus `UDisks2` com autenticação Polkit do host. Manifesto Flatpak oficial incluso. |
+| **III. Responsive & Asynchronous Architecture** | **PASSED** | Todas as operações de I/O, extração e escaneamento rodam em `QThread` assíncrona (`BurnWorker`) desacoplada da thread principal de renderização da GUI via signals/slots. Cancelamento limpo com `SIGTERM` e desalocação de recursos. |
+| **IV. Observability & User Feedback** | **PASSED** | Sinais em tempo real de porcentagem (`0-100%`), estágio atual textual descritivo, velocidade de gravação e gaveta de logs integrada com auto-scroll e botão de cópia. |
+| **V. Native Linux Desktop Integration** | **PASSED** | Construído em Python 3 + PySide6 (Qt 6), manifesto Flatpak com permissões Wayland e X11, arquivo `.desktop` padronizado e ícone SVG em conformidade com XDG. |
 
 ---
 
 ## Project Structure
 
-### Documentation (`specs/001-woeusb-gui/`)
+### Documentation (this feature)
 
 ```text
 specs/001-woeusb-gui/
-├── spec.md              # Requisitos da Feature (Fase de Especificação)
-├── plan.md              # Este plano de implementação
-└── tasks.md             # Tarefas de codificação (Fase 3)
+├── spec.md                              # Requisitos e cenários de aceitação
+├── plan.md                              # Este plano de implementação técnica
+├── research.md                          # Fase 0: Decisões técnicas e justificativas arquiteturais
+├── data-model.md                        # Fase 1: Entidades de domínio, enums e máquina de estados
+├── quickstart.md                        # Fase 1: Guia prático de execução e cenários de validação
+├── contracts/                           # Fase 1: Especificação formal de contratos
+│   ├── udisks2-contract.md              # Contrato D-Bus com o daemon de discos UDisks2
+│   ├── burn-engine-contract.md          # Contrato de sinais e slots da thread trabalhadora
+│   └── flatpak-contract.md              # Contrato de sandbox e permissões Flatpak
+└── tasks.md                             # Fase 2: Mapeamento ordenado de tarefas
 ```
 
-### Source Code (`/home/cristiano/Dev/woeusb-gui/`)
+### Source Code (repository root)
 
 ```text
-woeusb-gui/
-├── .specify/
-│   ├── memory/
-│   │   └── constitution.md
-│   └── templates/
-├── specs/
-│   └── 001-woeusb-gui/
-│       ├── spec.md
-│       ├── plan.md
-│       └── tasks.md
-├── src/
-│   ├── __init__.py
-│   ├── models.py            # Dataclasses: StorageDevice, WindowsISO, BurnConfig, BurnState
-│   ├── disk_manager.py      # Descoberta de pendrives via UDisks2 e lsblk, filtros de segurança
-│   ├── burn_engine.py       # QThread Worker: formatação UDisks2, extração ISO, split WIM, progresso
-│   ├── ui/
-│   │   ├── __init__.py
-│   │   ├── main_window.py   # Janela principal PySide6, integração Wayland/KDE
-│   │   └── components.py    # Widgets reutilizáveis (Card de ISO, Seletor de USB, Console de Logs)
-│   └── utils.py             # Formatação de bytes, validação de arquivos, helpers de D-Bus
-├── assets/
-│   ├── org.woeusb.WoeUsbGui.svg          # Ícone da aplicação
-│   ├── org.woeusb.WoeUsbGui.desktop      # Atalho de desktop Linux
-│   └── org.woeusb.WoeUsbGui.metainfo.xml # Metadados AppStream para lojas de software
-├── org.woeusb.WoeUsbGui.yml # Manifesto Flatpak oficial para flatpak-builder
-├── run.sh                   # Script executável de conveniência local
-├── SPEC.md -> specs/001-woeusb-gui/spec.md
-└── README.md
+src/
+└── woeusb_gui_flasher/
+    ├── __init__.py                      # Package entry point e versão
+    ├── __main__.py                      # CLI / GUI runner (python -m woeusb_gui_flasher)
+    ├── models.py                        # Dataclasses: StorageDevice, WindowsISO, BurnConfiguration, BurnState
+    ├── disk_manager.py                  # Descoberta segura via UDisks2 / lsblk com filtros estritos
+    ├── burn_engine.py                   # QThread assíncrona: orquestração de formatação, 7z e wimlib
+    ├── ui/
+    │   ├── __init__.py
+    │   ├── main_window.py               # Janela principal PySide6, layout reativo e eventos
+    │   └── components.py                # Widgets: Seletor de ISO, Seletor de USB, Barra e Drawer de Logs
+    └── utils.py                         # Validações, conversão de unidades e helpers de subprocesso
+
+tests/
+├── __init__.py
+├── test_spec.py                         # Validação de integridade dos artefatos da especificação
+├── test_models.py                       # Testes unitários para modelos de dados e validações
+├── test_disk_manager.py                 # Testes unitários para filtros de segurança e UDisks2
+├── test_burn_engine.py                  # Testes do motor de gravação com subprocessos simulados
+└── test_ui.py                           # Testes de integração de interface via pytest-qt
+
+assets/
+├── org.woeusb.WoeUsbGui.svg             # Ícone SVG vetorial do aplicativo
+├── org.woeusb.WoeUsbGui.desktop         # Entrada para menu de aplicativos do Linux
+└── org.woeusb.WoeUsbGui.metainfo.xml    # Metadados AppStream para Flathub / GNOME Software / Discover
+
+org.woeusb.WoeUsbGui.yml                 # Manifesto oficial de compilação via flatpak-builder
+pyproject.toml                           # Configuração do projeto Python (uv / hatchling)
+README.md                                # Documentação geral do repositório
 ```
 
----
-
-## Arquitetura Detalhada & Fluxo de Execução
-
-### 1. Descoberta Segura de Dispositivos (`disk_manager.py`)
-```
-[Início / Botão Recarregar]
-          │
-          ▼
-   Consulta D-Bus UDisks2 ──(ou lsblk -J -b)──► Lista de todos os dispositivos
-          │
-          ▼
-   Filtro de Segurança:
-   ├── TRAN == "usb" ou RM == true?
-   ├── Tamanho > 2 GB?
-   └── Possui partições montadas em /, /boot, /home, [SWAP]? ──► SE SIM: EXCLUIR SUMARIAMENTE
-          │
-          ▼
-   Lista de Pendrives Seguros para Exibição no ComboBox
-```
-
-### 2. Motor de Gravação Universal em Espaço de Usuário (`burn_engine.py`)
-```
-[Usuário Clica em "Iniciar Gravação" e Confirma]
-          │
-          ▼
-   [Etapa 1: Preparação do Disco via UDisks2]
-   ├── Desmontar partições ativas via UDisks2.Filesystem.Unmount()
-   ├── Criar tabela de partição MBR (msdos)
-   ├── Criar partição primária FAT32 (ou NTFS)
-   └── Montar partição via UDisks2.Filesystem.Mount() ──► /run/media/.../Windows USB
-          │
-          ▼
-   [Etapa 2: Extração de Arquivos em User-Space]
-   ├── Extrair arquivos da ISO diretamente para a pasta montada usando 7z
-   ├── Ignorar temporariamente 'sources/install.wim' se tamanho > 4 GB
-   └── Monitorar porcentagem de bytes copiados
-          │
-          ▼
-   [Etapa 3: Divisão da Imagem de Instalação (Split WIM)]
-   ├── Executar: wimlib-imagex split <iso_wim> <dest_mount>/sources/install.swm 4000
-   └── Monitorar progresso do split
-          │
-          ▼
-   [Etapa 4: Configuração de Boot UEFI & Legacy]
-   ├── Garantir que /efi/boot/bootx64.efi existe (copiado da ISO/WIM)
-   └── Sincronizar buffers de escrita do kernel (sync)
-          │
-          ▼
-   [Etapa 5: Finalização Segura]
-   ├── Desmontar mídia com segurança
-   └── Emitir sinal finished(True, "Gravação concluída com sucesso!")
-```
-
----
-
-## Manifesto Flatpak (`org.woeusb.WoeUsbGui.yml`)
-
-O manifesto Flatpak define o empacotamento completo e autossuficiente:
-
-```yaml
-app-id: org.woeusb.WoeUsbGui
-runtime: org.kde.Platform
-runtime-version: '6.6'
-sdk: org.kde.Sdk
-command: woeusb-gui
-finish-args:
-  - --share=ipc
-  - --socket=fallback-x11
-  - --socket=wayland
-  - --device=dri
-  - --filesystem=host:ro
-  - --filesystem=/run/media:rw
-  - --system-talk-name=org.freedesktop.UDisks2
-  - --talk-name=org.freedesktop.Flatpak
-
-modules:
-  - name: wimlib
-    buildsystem: autotools
-    config-opts:
-      - --without-fuse
-      - --without-ntfs-3g
-    sources:
-      - type: archive
-        url: https://wimlib.net/downloads/wimlib-1.14.5.tar.gz
-        sha256: 84221a3abd5b91228f15f8e6065c335a336237b5738197b75bf419eea561a194
-
-  - name: p7zip
-    buildsystem: generic
-    # compilação do 7z em espaço de usuário
-
-  - name: woeusb-gui
-    buildsystem: simple
-    build-commands:
-      - install -Dm755 run.sh /app/bin/woeusb-gui
-      - cp -r src /app/lib/woeusb-gui/
-      - install -Dm644 assets/org.woeusb.WoeUsbGui.desktop /app/share/applications/org.woeusb.WoeUsbGui.desktop
-      - install -Dm644 assets/org.woeusb.WoeUsbGui.svg /app/share/icons/hicolor/scalable/apps/org.woeusb.WoeUsbGui.svg
-```
+**Structure Decision**:
+Projeto estruturado no modelo de pacote Python padronizado (`src/woeusb_gui_flasher/`) gerenciado com `uv` e `pyproject.toml`, com camada gráfica encapsulada em `ui/`, motor desacoplado em `burn_engine.py`, ativos de desktop em `assets/` e manifesto de empacotamento Flatpak na raiz.
 
 ---
 
 ## Complexity Tracking
 
-| Decisão Arquitetural | Por Que Foi Adotada | Alternativa Mais Simples Rejeitada Porque |
-| :--- | :--- | :--- |
-| **UDisks2 D-Bus em vez de `pkexec woeusb` direto** | Permite que a aplicação funcione dentro do sandbox do Flatpak em qualquer distro Linux sem exigir root no container. | O comando `woeusb` tradicional usa `mount -o loop`, que é sumariamente bloqueado pelo kernel dentro de sandboxes Flatpak. |
-| **Extração com `7z` em user-space** | Lê e extrai a ISO sem necessitar montar dispositivo de loop no sistema operacional. | Montar a ISO com `mount -t udf` exige privilégios de superusuário e acesso a `/dev/loopX`. |
-| **Thread `QThread` assíncrona** | Evita travamento da janela ("Aplicação não está respondendo") durante transferências de 5+ GB. | Execução síncrona na thread principal congela a renderização da interface e impede o cancelamento pelo usuário. |
+> Todas as diretrizes da Constituição foram atendidas integralmente. Nenhuma exceção ou violação foi necessária.
 
+| Item | Status | Justificativa |
+| :--- | :---: | :--- |
+| Ausência de `mount -o loop` | Conforme | Substituído por `7z` em espaço de usuário para compatibilidade com Flatpak. |
+| Formatação via D-Bus UDisks2 | Conforme | Garante autenticação nativa sem requisições de root desnecessárias. |
+| Divisão de WIM automática | Conforme | Garante inicialização em hardware UEFI com Secure Boot sem quebras. |

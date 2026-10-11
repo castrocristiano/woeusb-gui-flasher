@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>org.woeusb.WoeUsbGui</id>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>GPL-3.0-or-later</project_license>
+  <name>WoeUSB-GUI</name>
+  <summary>Universal Windows USB bootable installation flasher for Linux</summary>
+  <description>
+    <p>
+      WoeUSB-GUI is a modern, responsive Linux desktop application for creating bootable Windows USB installation media from ISO images.
+    </p>
+    <p>
+      Designed to operate reliably within an unprivileged Flatpak sandbox across any Linux distribution:
+    </p>
+    <ul>
+      <li>Safeguards internal drives by strictly discovering only removable USB storage devices</li>
+      <li>Performs user-space extraction without requiring loop mounts or root privileges</li>
+      <li>Automatically splits install.wim files larger than 4 GB into .swm chunks for full FAT32 UEFI Secure Boot compatibility</li>
+      <li>Coordinates disk formatting and mounting via standard host UDisks2 D-Bus daemon</li>
+    </ul>
+  </description>
+  <launchable type="desktop-id">org.woeusb.WoeUsbGui.desktop</launchable>
+  <provides>
+    <binary>woeusb-gui</binary>
+  </provides>
+  <content_rating type="oars-1.1" />
+  <developer id="org.woeusb">
+    <name>Cristiano Castro</name>
+  </developer>
+</component>
+

@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <defs>
+    <linearGradient id="bodyGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1e293b" />
+      <stop offset="100%" stop-color="#0f172a" />
+    </linearGradient>
+    <linearGradient id="metalGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#cbd5e1" />
+      <stop offset="50%" stop-color="#94a3b8" />
+      <stop offset="100%" stop-color="#64748b" />
+    </linearGradient>
+    <linearGradient id="winBlue" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#38bdf8" />
+      <stop offset="100%" stop-color="#0284c7" />
+    </linearGradient>
+    <filter id="shadow" x="-10%" y="-10%" width="130%" height="130%">
+      <feDropShadow dx="0" dy="4" stdDeviation="4" flood-color="#000" flood-opacity="0.3" />
+    </filter>
+  </defs>
+
+  <!-- USB Metal Connector -->
+  <rect x="48" y="10" width="32" height="26" rx="3" fill="url(#metalGrad)" />
+  <rect x="54" y="16" width="6" height="8" rx="1" fill="#334155" />
+  <rect x="68" y="16" width="6" height="8" rx="1" fill="#334155" />
+
+  <!-- USB Drive Body -->
+  <rect x="36" y="32" width="56" height="84" rx="12" fill="url(#bodyGrad)" filter="url(#shadow)" stroke="#475569" stroke-width="2" />
+
+  <!-- Grip Lines -->
+  <line x1="44" y1="102" x2="84" y2="102" stroke="#334155" stroke-width="2" stroke-linecap="round" />
+  <line x1="44" y1="107" x2="84" y2="107" stroke="#334155" stroke-width="2" stroke-linecap="round" />
+
+  <!-- Windows Grid Emblem -->
+  <g transform="translate(46, 50)">
+    <rect x="0" y="0" width="16" height="16" rx="2" fill="url(#winBlue)" />
+    <rect x="20" y="0" width="16" height="16" rx="2" fill="url(#winBlue)" />
+    <rect x="0" y="20" width="16" height="16" rx="2" fill="url(#winBlue)" />
+    <rect x="20" y="20" width="16" height="16" rx="2" fill="url(#winBlue)" />
+  </g>
+
+  <!-- Activity Indicator LED -->
+  <circle cx="64" cy="40" r="3" fill="#22c55e" />
+</svg>
+
