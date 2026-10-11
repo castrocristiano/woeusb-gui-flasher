@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>org.woeusb.WoeUsbGui</id>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>GPL-3.0-or-later</project_license>
+  <name>WoeUSB-GUI</name>
+  <summary>Create bootable Windows USB drives on Linux</summary>
+  <description>
+    <p>
+      WoeUSB-GUI is a modern, responsive Linux desktop application for creating bootable Windows USB installation media from ISO images.
+    </p>
+    <p>
+      Designed to operate safely and reliably across modern Linux distributions (Arch Linux, Fedora, Ubuntu, Debian, BigLinux, and Manjaro), packaged universally as a Flatpak:
+    </p>
+    <ul>
+      <li>Strictly filters removable USB drives (&gt;= 2 GB), completely hiding and protecting system disks and partitions</li>
+      <li>Extracts Windows ISO files directly in user space without requiring loop mounts or elevated privileges</li>
+      <li>Automatically splits install.wim files larger than 4 GB into .swm parts for full FAT32 UEFI Secure Boot compatibility</li>
+      <li>Handles drive formatting and mounting via standard unprivileged UDisks2 D-Bus daemon</li>
+      <li>Real-time asynchronous progress reporting, speed estimation, and detailed diagnostic logs</li>
+    </ul>
+  </description>
+  <launchable type="desktop-id">org.woeusb.WoeUsbGui.desktop</launchable>
+  <url type="homepage">https://github.com/castrocristiano/woeusb-gui-flasher</url>
+  <url type="bugtracker">https://github.com/castrocristiano/woeusb-gui-flasher/issues</url>
+  <url type="vcs-browser">https://github.com/castrocristiano/woeusb-gui-flasher</url>
+  <url type="help">https://github.com/castrocristiano/woeusb-gui-flasher#readme</url>
+  <branding>
+    <color type="primary" scheme_preference="light">#0078d4</color>
+    <color type="primary" scheme_preference="dark">#106ebe</color>
+  </branding>
+  <screenshots>
+    <screenshot type="default">
+      <image>https://raw.githubusercontent.com/castrocristiano/woeusb-gui-flasher/main/assets/screenshots/main-window.png</image>
+      <caption>Main application interface showing ISO selection and target USB device</caption>
+    </screenshot>
+  </screenshots>
+  <releases>
+    <release version="0.1.0" date="2026-10-10">
+      <description>
+        <p>Initial release of WoeUSB-GUI:</p>
+        <ul>
+          <li>Safe USB drive detection preventing accidental overwrites</li>
+          <li>FAT32 UEFI Secure Boot support with automatic WIM splitting</li>
+          <li>Direct user-space ISO extraction using 7z</li>
+          <li>Modern PySide6 and Qt 6 graphical interface</li>
+        </ul>
+      </description>
+    </release>
+  </releases>
+  <content_rating type="oars-1.1" />
+  <developer id="io.github.castrocristiano">
+    <name>Cristiano Castro</name>
+  </developer>
+  <provides>
+    <binary>woeusb-gui</binary>
+  </provides>
+  <supports>
+    <control>pointing</control>
+    <control>keyboard</control>
+  </supports>
+</component>
