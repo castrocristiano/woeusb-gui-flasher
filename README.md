@@ -1,139 +1,132 @@
 # WoeUSB-GUI (Windows Bootable USB Flasher)
 
-A modern, reliable Linux desktop application built with Python and **PySide6 / Qt 6** for creating bootable Windows installation USB drives from official ISO disk images. Designed for all major Linux distributions (Arch Linux, Fedora, Ubuntu, Debian, BigLinux, Manjaro) and universally packaged via **Flatpak** (`org.woeusb.WoeUsbGui`).
+A Linux desktop application built with Python and **PySide6 / Qt 6** for creating bootable Windows installation USB drives from official ISO images. Targets all major distributions (Arch Linux, Fedora, Ubuntu, Debian, BigLinux, Manjaro) and is packaged as a **Flatpak** (`org.woeusb.WoeUsbGui`).
 
-[![Flathub](https://img.shields.io/badge/Flathub-org.woeusb.WoeUsbGui-blue?logo=flathub)](https://flathub.org/apps/org.woeusb.WoeUsbGui)
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
 ![Python: >=3.11](https://img.shields.io/badge/Python->=3.11-green.svg)
 ![Qt: 6 (PySide6)](https://img.shields.io/badge/Qt-6-green.svg)
-![AppStream: Validated](https://img.shields.io/badge/AppStream-Validated-brightgreen.svg)
+![Flathub: not yet published](https://img.shields.io/badge/Flathub-not%20yet%20published-lightgrey?logo=flathub)
 
 🌐 **Language**: **English** | [Português (Brasil)](README.pt-BR.md)
+
+> [!NOTE]
+> WoeUSB-GUI is **not yet available on Flathub**. See [docs/FLATHUB.md](docs/FLATHUB.md) for the submission status and the open items that must be resolved first.
 
 ---
 
 ## 📸 Interface
 
-![WoeUSB-GUI Main Interface](assets/screenshots/main-window.png)
+![WoeUSB-GUI main window](assets/screenshots/main-window.png)
 
 ---
 
-## ✨ Key Features
+## ✨ Features
 
-- **Strict Data Protection & Drive Safety**:
-  - Device enumeration powered by D-Bus `UDisks2` and `lsblk`.
-  - Filters and displays **only** removable USB drives with capacity $\ge$ 2 GB.
-  - Automatically hides and protects all internal storage drives, system partitions (`/`, `/boot`, `/home`), and swap devices.
-  - Mandatory confirmation modal showing device vendor, model, capacity, and path before formatting.
-- **Unprivileged User-Space ISO Extraction**:
-  - Direct ISO extraction utilizing `7z` (`p7zip`), eliminating risky elevated loop mounts (`mount -o loop`).
-- **Automatic UEFI Secure Boot Compatibility (FAT32)**:
-  - Formats drives to FAT32 with standard UEFI bootloader structure (`/efi/boot/bootx64.efi`).
-  - Automatically splits `install.wim` files larger than 4 GB into `.swm` chunks via `wimlib-imagex split`, overcoming the FAT32 single-file size barrier seamlessly.
-- **Modern & Responsive Qt 6 GUI**:
-  - Fully asynchronous operation via background `QThread` workers, maintaining smooth 60 FPS UI responsiveness.
-  - Real-time progress bar, phase indicators, and transfer speed estimation.
-  - Expandable detailed log drawer with one-click clipboard copying.
-  - Safe task cancellation with clean process termination and unmounting.
-- **Flathub Quality Compliant**:
-  - Strict sandboxing adhering to Flathub Quality Guidelines.
-  - Wayland-native with X11 fallback and hardware-accelerated rendering.
+### Drive safety
+- Device discovery through the host **UDisks2** D-Bus service, with `lsblk` as fallback.
+- Only **removable USB drives ≥ 2 GB** are listed. Internal disks, swap and any disk holding a system mount point (`/`, `/boot`, `/home`, …) are never shown.
+- **Large-drive filter** — *"Hide large drives (> 64 GB)"* is **enabled by default** and hides drives larger than 64 GiB (68.7 GB), so external backup HDDs/SSDs are not offered by accident. Untick it to show them.
+- **Same-disk collision check** — if the selected ISO lives on the same physical disk as the target (any partition of it, symlinks resolved), the *Start* button is disabled with an explanation. The check runs again right before any unmount/format step.
+- Explicit confirmation dialog showing vendor, model, capacity and device path before anything is erased.
+
+### Writing
+- ISO contents are extracted in user space with `7z` (p7zip) — no `mount -o loop`, no root.
+- FAT32 target with the standard UEFI layout (`/efi/boot/bootx64.efi`).
+- `install.wim` files larger than 4 GB are split into `.swm` parts with `wimlib-imagex split`, so the drive stays FAT32 / UEFI Secure Boot compatible.
+
+### Interface
+- All long operations run in a dedicated `QThread` worker; the UI stays responsive.
+- Progress bar, current phase, speed estimate, and an expandable log panel with copy-to-clipboard.
+- Safe cancellation: child processes are terminated and the target is unmounted cleanly.
 
 ---
 
 ## 🚀 Installation & Usage
 
-### 1. Install via Flathub (Recommended)
+### 1. Build and run the Flatpak locally
 
-Once published on Flathub, install and launch WoeUSB-GUI using:
-
-```bash
-# Install from Flathub
-flatpak install flathub org.woeusb.WoeUsbGui
-
-# Run the application
-flatpak run org.woeusb.WoeUsbGui
-```
-
-### 2. Building and Testing with Flatpak Locally
-
-WoeUSB-GUI uses the KDE 6.6 runtime (`org.kde.Platform`), which provides full PySide6 and Qt 6 support:
+The manifest uses the KDE 6.6 runtime and bundles PySide6 6.6.3 wheels (x86_64).
 
 ```bash
-# 1. Install required KDE 6.6 runtime and SDK
+# KDE 6.6 runtime and SDK
 flatpak install flathub org.kde.Platform//6.6 org.kde.Sdk//6.6
 
-# 2. Build and install into local user repository
+# Build and install into the user installation
 flatpak-builder --force-clean --user --install build-dir org.woeusb.WoeUsbGui.yml
 
-# 3. Launch the installed Flatpak
+# Run
 flatpak run org.woeusb.WoeUsbGui
 ```
 
-### 3. Running from Source (Development)
+> [!TIP]
+> If the build fails with `fuse: mount failed` (containers, restricted environments), add `--disable-rofiles-fuse`.
 
-#### Prerequisites:
-- Python 3.11+
-- [uv](https://docs.astral.sh/uv/) (or `venv` + `pip`)
-- System dependencies: `p7zip` (`7z`), `wimlib`, `dosfstools` (`mkfs.vfat`), `udisks2`
+### 2. Run from source (development)
+
+Requirements:
+- Python 3.11+ and [uv](https://docs.astral.sh/uv/) (or `venv` + `pip`)
+- System tools: `p7zip` (`7z`), `wimlib`, `dosfstools` (`mkfs.vfat`), `udisks2`
 
 ```bash
-# Clone the repository
 git clone https://github.com/castrocristiano/woeusb-gui-flasher.git
 cd woeusb-gui-flasher
-
-# Sync dependencies using uv
 uv sync
-
-# Launch the application
-uv run woeusb-gui
-# Or via the convenience launcher script:
-./run.sh
+uv run woeusb-gui        # or: ./run.sh
 ```
 
 ---
 
-## 🔒 Sandboxing & Security Permissions
+## 🔒 Flatpak Sandbox Permissions
 
-To operate securely inside the Flatpak sandbox while managing USB storage, WoeUSB-GUI requires specific permissions:
-
-| Permission | Reason |
+| Permission | Why it is needed |
 | :--- | :--- |
-| `--system-talk-name=org.freedesktop.UDisks2` | Enumerates removable drives, formats partitions, and handles mounts safely through the host's UDisks2 service without root privileges. |
-| `--filesystem=/run/media:rw` | Writes extracted Windows installation files to USB mount points created by UDisks2. |
-| `--filesystem=host:ro` | Allows the user to select Windows `.iso` images stored in their home directory, Downloads, or secondary disks. |
-| `--socket=wayland` / `--socket=fallback-x11` | Provides graphical interface display on both modern Wayland and X11 desktop sessions. |
-| `--device=dri` | Enables hardware-accelerated GUI rendering. |
-
-For a comprehensive explanation of permissions and Flathub policies, see [docs/FLATHUB.md](docs/FLATHUB.md).
+| `--system-talk-name=org.freedesktop.UDisks2` | Enumerate removable drives, format, mount and unmount through the host UDisks2 service without root. |
+| `--filesystem=/run/media:rw` | Write the extracted Windows files to the mount point UDisks2 creates for the USB drive. |
+| `--filesystem=host:ro` | Read the selected `.iso` from anywhere on the system and resolve which physical disk it lives on (same-disk check). |
+| `--socket=wayland` / `--socket=fallback-x11` | Display on Wayland, with X11 fallback. |
+| `--share=ipc` / `--device=dri` | X11 shared memory and GPU-accelerated rendering. |
+| `--talk-name=org.freedesktop.Flatpak` | ⚠️ Currently in the manifest but **not used by the code**; scheduled for removal before submission (see [docs/FLATHUB.md](docs/FLATHUB.md#7-open-items-before-flathub-submission)). |
 
 ---
 
-## 🧪 Testing & Validation
-
-### Automated Test Suite
-
-The project includes unit, contract, and UI tests using `pytest` and `pytest-qt`:
+## 🧪 Tests & Quality
 
 ```bash
-# Run tests in offscreen mode
-uv run pytest
+# Lint and format check (same as CI)
+uv run ruff check .
+uv run ruff format --check .
 
-# Run tests with code coverage report
-uv run pytest --cov=woeusb_gui_flasher
-```
+# Tests (headless) with coverage
+QT_QPA_PLATFORM=offscreen uv run pytest -v --cov=src --cov-report=xml:coverage.xml
 
-### AppStream & Desktop Metadata Validation
-
-Validate metadata integrity against Freedesktop and Flathub quality specifications:
-
-```bash
-# Validate Desktop entry
+# Desktop entry and AppStream metadata
 desktop-file-validate assets/org.woeusb.WoeUsbGui.desktop
-
-# Validate AppStream MetaInfo (pedantic mode)
 appstreamcli validate --no-net --pedantic assets/org.woeusb.WoeUsbGui.metainfo.xml
 ```
+
+The test suite covers models, disk manager, device safety filters, burn engine, cancellation, UI, and the UDisks2 / Flatpak / burn-engine contracts.
+
+### SonarQube (optional, local)
+
+A local SonarQube server and scanner are defined in [docker-compose.yml](docker-compose.yml) (works with Docker or Podman):
+
+```bash
+docker compose up -d sonarqube                       # or: podman-compose up -d sonarqube
+docker compose --profile scan run --rm sonar-scanner # run after generating coverage.xml
+docker compose down
+```
+
+### Continuous Integration
+
+[.github/workflows/ci.yml](.github/workflows/ci.yml) runs on pushes to `feature/**`, `phase/**`, `develop`, `main` and on PRs:
+
+1. **Build & Test** — `uv sync`, `ruff check`, `ruff format --check`, `pytest` with coverage.
+2. **SonarQube** — scan + Quality Gate against an ephemeral SonarQube service.
+3. **Auto PR** — on `develop`, opens/updates a PR `develop → main`.
+4. **Release** — on `main`, creates a GitHub Release tagged from `pyproject.toml`'s version.
+
+> [!IMPORTANT]
+> This automation applies **only to this repository**. Nothing in CI interacts with `flathub/flathub`; see the AI policy section in [docs/FLATHUB.md](docs/FLATHUB.md#6-flathub-generative-ai-policy-compliance).
 
 ---
 
@@ -141,51 +134,52 @@ appstreamcli validate --no-net --pedantic assets/org.woeusb.WoeUsbGui.metainfo.x
 
 ```
 woeusb-gui-flasher/
+├── .github/workflows/ci.yml             # CI: lint, tests, SonarQube, auto PR, release
 ├── assets/
-│   ├── org.woeusb.WoeUsbGui.desktop     # Desktop launcher integration
-│   ├── org.woeusb.WoeUsbGui.metainfo.xml # AppStream / Flathub metadata
-│   ├── org.woeusb.WoeUsbGui.svg         # Application vector icon
-│   └── screenshots/
-│       └── main-window.png              # UI screenshot for Flathub & AppStream
-├── docs/
-│   └── FLATHUB.md                       # Comprehensive Flathub packaging & review guide
-├── specs/
-│   └── 001-woeusb-gui/                  # Spec-Driven Development artifacts
-├── src/
-│   └── woeusb_gui_flasher/
-│       ├── main.py                      # Application entry point
-│       ├── models.py                    # Domain models and dataclasses
-│       ├── utils.py                     # Byte formatting and subprocess helpers
-│       ├── disk_manager.py              # Safe disk discovery via UDisks2/lsblk
-│       ├── burn_engine.py               # Asynchronous burning worker (QThread)
-│       └── ui/
-│           ├── components.py            # Reusable UI widgets and cards
-│           └── main_window.py           # Main window and confirmation modal
-├── tests/                               # Comprehensive unit and UI test suite
-├── CONTRIBUTING.md                      # Contribution guidelines
-├── org.woeusb.WoeUsbGui.yml             # Flatpak build manifest
-└── pyproject.toml                       # Python package configuration
+│   ├── org.woeusb.WoeUsbGui.desktop     # Desktop entry
+│   ├── org.woeusb.WoeUsbGui.metainfo.xml# AppStream metadata
+│   ├── org.woeusb.WoeUsbGui.svg         # Application icon
+│   └── screenshots/main-window.png      # Screenshot used by AppStream / README
+├── docs/FLATHUB.md                      # Flathub packaging, permissions, AI policy, open items
+├── specs/                               # Spec-Driven Development artifacts
+│   ├── 001-woeusb-gui/                  #   core application
+│   └── 002-device-safety-filters/       #   large-drive filter + same-disk collision check
+├── src/woeusb_gui_flasher/
+│   ├── main.py                          # Entry point
+│   ├── models.py                        # Dataclasses, thresholds (2 GB min, 64 GiB "large")
+│   ├── utils.py                         # Byte formatting, subprocess helpers
+│   ├── disk_manager.py                  # Device discovery, safety filters, collision check, unmount
+│   ├── burn_engine.py                   # BurnWorker (QThread): format, extract, split WIM
+│   └── ui/
+│       ├── components.py                # Reusable widgets
+│       └── main_window.py               # Main window and confirmation dialog
+├── tests/                               # Unit, contract and UI tests
+├── CONTRIBUTING.md
+├── docker-compose.yml                   # Local SonarQube + scanner
+├── org.woeusb.WoeUsbGui.yml             # Flatpak manifest
+├── pyproject.toml
+└── run.sh                               # Convenience launcher
 ```
 
 ---
 
 ## 🤝 Contributing
 
-Contributions are welcome! Please check [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines on code style, tests, and the pull request process.
+See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ---
 
 ## 🤖 Generative AI Disclosure
 
-In full adherence to the [Flathub Generative AI Policy](https://docs.flathub.org/docs/for-app-authors/requirements/):
+In line with the [Flathub requirements and Generative AI policy](https://docs.flathub.org/docs/for-app-authors/requirements):
 
-- **Application Code & Documentation**: Parts of the codebase, test suites, and documentation were drafted with the assistance of Generative AI tools (LLM coding assistants) under the direct supervision, architectural guidance, and review of the human author.
-- **Human Verification & Safety**: All critical logic—particularly hardware drive enumeration safety filters, UDisks2 communication, and WIM splitting routines—has been audited, tested, and validated by the maintainer.
-- **Flathub Manifest & Packaging**: The Flatpak manifest (`org.woeusb.WoeUsbGui.yml`) is curated, tested locally, and maintained by a human developer. In compliance with Flathub submission rules, all Flathub pull requests, commit messages, and review communications are conducted manually by human maintainers without automated bots.
+- **Application code, tests and documentation** (including this README, `CONTRIBUTING.md` and `docs/FLATHUB.md`) were produced with substantial assistance from Generative AI coding assistants, under the direction and review of the human maintainer.
+- **Safety-critical logic** — drive filtering, same-disk collision detection, UDisks2 calls, formatting and WIM splitting — is reviewed and tested by the maintainer and covered by automated tests.
+- **Flatpak manifest**: Flathub does not accept AI-generated or AI-assisted manifests, even when disclosed. The manifest submitted to Flathub will be written and maintained by the human maintainer.
+- **Flathub submission**: the pull request, commit messages and all replies to Flathub reviewers are written manually by the maintainer, with no AI agents involved.
 
 ---
 
 ## 📜 License
 
-This project is licensed under the **GPL-3.0-or-later** license. See the [LICENSE](LICENSE) file for details. AppStream metadata is licensed under **CC0-1.0**.
-
+**GPL-3.0-or-later** — see [LICENSE](LICENSE). AppStream metadata is licensed under **CC0-1.0**.

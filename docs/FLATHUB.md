@@ -1,183 +1,164 @@
-# Flathub Packaging & Quality Guidelines
+# Flathub Packaging Guide
 
-This document details the Flatpak packaging architecture, sandboxing model, and Flathub Quality Guidelines compliance for **WoeUSB-GUI** (`org.woeusb.WoeUsbGui`).
+Packaging architecture, sandbox permissions, Flathub policy compliance and the remaining open items for **WoeUSB-GUI** (`org.woeusb.WoeUsbGui`).
 
----
-
-## 1. Application Identity & Metadata
-
-- **Application ID**: `org.woeusb.WoeUsbGui`
-- **Component Type**: `desktop-application`
-- **Metadata License**: `CC0-1.0` (Permissive as required by AppStream and Flathub)
-- **Project License**: `GPL-3.0-or-later` (Valid SPDX identifier)
-- **Runtime**: `org.kde.Platform` (Branch: `6.6` or later, providing Qt 6 and PySide6 support)
-- **SDK**: `org.kde.Sdk`
-- **Desktop Entry**: `/app/share/applications/org.woeusb.WoeUsbGui.desktop`
-- **Icon**: `/app/share/icons/hicolor/scalable/apps/org.woeusb.WoeUsbGui.svg`
-- **MetaInfo**: `/app/share/metainfo/org.woeusb.WoeUsbGui.metainfo.xml`
+> [!IMPORTANT]
+> **Status: not yet submitted.** Section 7 lists the items that must be resolved before opening the Flathub pull request.
 
 ---
 
-## 2. Sandbox Permissions & Security Rationale
+## 1. Application Identity
 
-Flathub reviewers review every permission requested under `finish-args`. Below is the technical justification for each entitlement:
+| Field | Value |
+| :--- | :--- |
+| Application ID | `org.woeusb.WoeUsbGui` |
+| Component type | `desktop-application` |
+| Project license | `GPL-3.0-or-later` |
+| Metadata license | `CC0-1.0` |
+| Runtime / SDK | `org.kde.Platform` / `org.kde.Sdk`, branch `6.6` |
+| Command | `woeusb-gui` |
+| Desktop entry | `/app/share/applications/org.woeusb.WoeUsbGui.desktop` |
+| Icon | `/app/share/icons/hicolor/scalable/apps/org.woeusb.WoeUsbGui.svg` |
+| MetaInfo | `/app/share/metainfo/org.woeusb.WoeUsbGui.metainfo.xml` |
 
-| Permission | Scope | Technical Justification |
+---
+
+## 2. Manifest Modules
+
+`org.woeusb.WoeUsbGui.yml` builds four modules:
+
+| Module | Source | Purpose |
 | :--- | :--- | :--- |
-| `--system-talk-name=org.freedesktop.UDisks2` | D-Bus (System Bus) | Allows the unprivileged Flatpak application to communicate with the host's UDisks2 daemon to safely enumerate removable USB drives, query block device topology, unmount, format (FAT32/NTFS), and mount target partitions without needing root/sudo privileges or device-node access. |
-| `--filesystem=/run/media:rw` | Host Filesystem | Mount points created by UDisks2 on modern Linux distributions (Arch, Fedora, Ubuntu, Debian, BigLinux, Manjaro) are placed under `/run/media/$USER/<LABEL>`. Read/write access is required to copy extracted Windows installation files to the mounted target USB drive. |
-| `--filesystem=host:ro` | Host Filesystem | Allows the user to browse and select Windows `.iso` disk images stored anywhere on their system (e.g., `~/Downloads`, secondary drives, or network shares). |
-| `--share=ipc` | IPC | Required for X11 shared memory extension and performant GUI communication. |
-| `--socket=wayland` | Display | Native Wayland window display on modern Wayland desktop sessions (GNOME, KDE Plasma, Sway). |
-| `--socket=fallback-x11` | Display | Fallback display support for X11 desktop sessions. |
-| `--device=dri` | GPU | Hardware acceleration for Qt 6 / PySide6 rendering. |
-| `--talk-name=org.freedesktop.Flatpak` | D-Bus (Session Bus) | Interacts with Flatpak portal for sandboxed desktop integration. |
+| `wimlib` 1.14.5 | wimlib.net tarball (autotools, `--without-fuse --without-ntfs-3g`) | `wimlib-imagex split` for `install.wim` > 4 GB |
+| `p7zip` 17.05 | GitHub release tarball | `7z` for user-space ISO extraction |
+| `python3-pyside6` | `shiboken6` + `PySide6_Essentials` 6.6.3 wheels from PyPI (`manylinux_2_28_x86_64`) | Qt 6 bindings — the KDE runtime ships Qt but not PySide6 |
+| `woeusb-gui` | local `type: dir` | Installs the Python package, desktop entry, icon and MetaInfo |
+
+---
+
+## 3. Sandbox Permissions
+
+Every `finish-args` entry is reviewed by Flathub. Current state and justification:
+
+| Permission | Status | Justification |
+| :--- | :--- | :--- |
+| `--system-talk-name=org.freedesktop.UDisks2` | Required | Enumerate removable drives and format / mount / unmount them through the host UDisks2 daemon, without root or raw `/dev` access. |
+| `--filesystem=/run/media:rw` | Required | UDisks2 mounts the target under `/run/media/$USER/<LABEL>`; the extracted Windows files are written there. |
+| `--filesystem=host:ro` | Required (see 7.2) | Read the ISO from any location **and** resolve which physical block device holds it, for the same-disk collision check (`/proc/self/mountinfo` + `st_dev` of the real path). A portal-provided path would hide the original device. |
+| `--socket=wayland` | Required | Native Wayland display. |
+| `--socket=fallback-x11` | Required | X11 fallback only when Wayland is unavailable. |
+| `--share=ipc` | Required | X11 shared memory. |
+| `--device=dri` | Required | GPU-accelerated Qt rendering. |
+| `--talk-name=org.freedesktop.Flatpak` | **Remove** (see 7.1) | Not used: the code never calls `flatpak-spawn --host`. This permission allows running commands on the host (sandbox escape) and Flathub will reject it without a strong reason. |
 
 > [!NOTE]
-> The application intentionally **does not** request `--device=all`, `--filesystem=host:rw`, or privileged device node access (`/dev/*`). All disk writes are performed through standard filesystem mount points or managed through UDisks2.
+> The application does **not** request `--device=all`, `--filesystem=host` (read-write), `--filesystem=home`, or network access.
 
 ---
 
-## 3. Flathub Quality Guidelines Checklist
+## 4. AppStream & Desktop Entry
 
-WoeUSB-GUI satisfies the requirements set forth in the [Flathub Quality Guidelines](https://docs.flathub.org/docs/for-app-authors/metainfo-guidelines/):
+Implemented in `assets/`:
 
-- [x] **AppStream Specification 1.0 Compliance**:
-  - File located in standard path: `/app/share/metainfo/org.woeusb.WoeUsbGui.metainfo.xml`.
-  - Exactly matching `<id>` and `<launchable>` tags.
-  - Required URLs included: `<url type="homepage">`, `<url type="bugtracker">`, `<url type="vcs-browser">`, `<url type="help">`.
-  - Structured `<description>` containing explanatory paragraphs and bullet points.
-  - Concise summary (<= 35 characters ideal, no ending period).
-- [x] **Branding Colors**:
-  - Defines `<branding>` with `#0078d4` (light) and `#106ebe` (dark) brand colors for Flathub banner curation.
-- [x] **Visual Assets**:
-  - Valid scalable vector SVG icon at 128x128 / scalable canvas.
-  - Screenshots specified with `<screenshots>`, including direct raw source URLs and descriptive captions.
-- [x] **Release Notes**:
-  - Includes structured `<releases>` with semantic version, ISO-8601 release date, and detailed release highlights.
-- [x] **OARS Content Rating**:
-  - Includes `<content_rating type="oars-1.1" />`.
-- [x] **Developer Identity**:
-  - Includes `<developer id="...">` with maintainer name.
-- [x] **Desktop Entry Standards**:
-  - Strictly follows FreeDesktop.org Desktop Entry Specification.
-  - Verified with zero warnings via `desktop-file-validate`.
-  - Single main category (`Utility;`) plus valid subcategories (`Archiving;Qt;`).
+- `<id>` and `<launchable>` match the app ID; `<developer id>` present.
+- URLs: `homepage`, `bugtracker`, `vcs-browser`, `help`.
+- `<branding>` with light (`#0078d4`) and dark (`#106ebe`) primary colors.
+- One screenshot with caption (`assets/screenshots/main-window.png`, referenced via `raw.githubusercontent.com/.../main/...`).
+- `<releases>` with `0.1.0` (2026-10-10).
+- `<content_rating type="oars-1.1"/>`, `<supports>` pointing + keyboard.
+- Desktop entry: `Categories=Utility;Archiving;Qt;` (single main category).
 
----
-
-## 4. Local Build & Validation
-
-### 4.1 Prerequisites
-
-Ensure Flatpak development tools are installed on your system:
+Validation:
 
 ```bash
-# Arch Linux / Manjaro
-sudo pacman -S flatpak flatpak-builder appstream
-
-# Fedora
-sudo dnf install flatpak flatpak-builder appstream
-
-# Ubuntu / Debian
-sudo apt install flatpak flatpak-builder appstream
-```
-
-Install the KDE 6.6 Platform and SDK runtimes:
-
-```bash
-flatpak install flathub org.kde.Platform//6.6 org.kde.Sdk//6.6
-```
-
-### 4.2 Building and Installing Locally
-
-Compile and install the application locally into your user Flatpak repository:
-
-```bash
-flatpak-builder --force-clean --user --install build-dir org.woeusb.WoeUsbGui.yml
-```
-
-Run the installed Flatpak application:
-
-```bash
-flatpak run org.woeusb.WoeUsbGui
-```
-
-### 4.3 Metadata Validation
-
-Validate the desktop entry and AppStream metadata:
-
-```bash
-# Validate Desktop entry
 desktop-file-validate assets/org.woeusb.WoeUsbGui.desktop
-
-# Validate AppStream MetaInfo (pedantic mode)
 appstreamcli validate --no-net --pedantic assets/org.woeusb.WoeUsbGui.metainfo.xml
 ```
 
-Both tools must complete with exit code `0` and no fatal errors.
+Current result: both pass. The only pedantic note is `cid-contains-uppercase-letter` (allowed). Without `--no-net`, the screenshot URL returns 404 until the file exists on the `main` branch (see 7.4).
 
 ---
 
-## 5. Submitting to Flathub
+## 5. Local Build & Lint
 
-When submitting WoeUSB-GUI to Flathub:
+```bash
+flatpak install flathub org.kde.Platform//6.6 org.kde.Sdk//6.6 org.flatpak.Builder
 
-1. **Fork the Flathub Repository**:
-   Fork [flathub/flathub](https://github.com/flathub/flathub) on GitHub.
+flatpak-builder --force-clean --user --install build-dir org.woeusb.WoeUsbGui.yml
+flatpak run org.woeusb.WoeUsbGui
 
-2. **Create a Dedicated Branch**:
-   ```bash
-   git checkout -b add-org.woeusb.WoeUsbGui
-   ```
+# Flathub linter (manifest and build output)
+flatpak run --command=flatpak-builder-lint org.flatpak.Builder manifest org.woeusb.WoeUsbGui.yml
+flatpak run --command=flatpak-builder-lint org.flatpak.Builder builddir build-dir
+```
 
-3. **Add Manifest & Sources**:
-   - Place `org.woeusb.WoeUsbGui.yml` in the repository root.
-   - Ensure the module sources point to a permanent release tag/archive and include accurate `sha256` checksums.
-
-5. **Verify with flatpak-builder-lint**:
-   ```bash
-   flatpak run --command=flatpak-builder-lint org.flatpak.Builder manifest org.woeusb.WoeUsbGui.yml
-   ```
-
-6. **Open Pull Request (Human Maintainer Only)**:
-   - Open a pull request against `flathub/flathub:new-pr`.
-   - Provide the permissions rationale and AI disclosure (see Section 6 below).
+If `rofiles-fuse` is unavailable (containers), add `--disable-rofiles-fuse` to `flatpak-builder`.
 
 ---
 
 ## 6. Flathub Generative AI Policy Compliance
 
-Flathub enforces a strict [Generative AI Policy](https://docs.flathub.org/docs/for-app-authors/requirements/) to protect code quality, security, and repository integrity. It is essential to comply with all aspects of this policy to avoid submission rejection or maintainer account suspension:
+This project uses Generative AI for code, tests and documentation. Flathub's [requirements](https://docs.flathub.org/docs/for-app-authors/requirements) include a Generative AI policy whose violation leads to rejection and, if repeated, a permanent ban.
 
-### 6.1 Policy Rules Summary
+### 6.1 Rules
 
-1. **Mandatory Disclosure**:
-   - Any AI-generated code, documentation, or packaging material in the upstream repository must be explicitly disclosed.
-   - The disclosure must clearly identify the affected components and the approximate extent of AI usage.
-   - Undisclosed or misrepresented AI usage is grounds for immediate rejection and potential permanent bans.
+1. **Disclosure is mandatory.** AI-generated code, documentation or packaging in the app must be disclosed, naming the affected parts and the approximate extent. AI used only for research/debugging, with nothing generated shipped, needs no disclosure.
+2. **The Flathub manifest must not be AI-generated or AI-assisted.** Disclosure does *not* exempt it.
+3. **No AI in the submission process.** AI tools/agents must not open or automate the Flathub PR, write commit messages, PR descriptions, review comments or replies, and you must not request AI-agent reviews.
+4. Reviewers may reject a submission based on the extent of generated material, quality or maintainability concerns, even if it was disclosed.
 
-2. **Strict Manifest Ban**:
-   - Flathub manifests **must not** contain AI-generated or AI-assisted content. Disclosure does *not* exempt manifests from this rule.
-   - The Flatpak manifest (`org.woeusb.WoeUsbGui.yml`) must be reviewed, verified, tested, and curated by human developers.
+### 6.2 What this means for this repository
 
-3. **Strict Ban on AI in Submission & Review Interactions**:
-   - AI tools, agents, or bots are strictly **prohibited** from:
-     - Opening or automating pull requests on Flathub repositories.
-     - Generating commit messages, PR descriptions, or PR updates on Flathub.
-     - Generating review comments, responses, or discussion replies to Flathub maintainers.
-     - Requesting "AI-agent reviews" on pull requests.
-   - **All interactions on the Flathub pull request must be performed directly and manually by the human maintainer.**
+| Item | Situation | Action |
+| :--- | :--- | :--- |
+| Application code, tests | AI-assisted | Disclosed in README. Maintainer must be able to explain and maintain the code. |
+| README, CONTRIBUTING, this file, AppStream text | AI-assisted | Disclosed in README. |
+| `org.woeusb.WoeUsbGui.yml` (this repo) | Its authorship must be confirmed by the maintainer | The manifest sent to `flathub/flathub` must be **written by hand** by the maintainer. Do not ask an AI assistant to create or edit it. |
+| CI auto-PR / release bot | Acts only on this repository | Must never target `flathub/flathub`. |
+| Flathub PR, commits, replies | — | Written manually by the maintainer. |
 
-### 6.2 Required Flathub PR Disclosure Template
+### 6.3 Disclosure for the Flathub PR description
 
-When opening the pull request on `flathub/flathub`, include an explicit disclosure in the PR description:
+> [!CAUTION]
+> Because PR descriptions must not be AI-generated, **do not paste text written by an assistant** (including any template from this repository) into the Flathub PR. Write the disclosure yourself, covering at least:
+> - which parts of the upstream app were AI-assisted (code, tests, docs, metadata) and roughly how much;
+> - that the Flathub manifest was written by you without AI;
+> - that the PR and all communication are done by you.
 
-```markdown
-### Generative AI Disclosure
-In compliance with Flathub's Generative AI policy:
-- **Upstream Application Code & Documentation**: The codebase was developed with the assistance of Generative AI (used for code scaffolding, refactoring, and test authoring under human architectural direction, safety verification, and review).
-- **Flatpak Manifest**: The manifest (`org.woeusb.WoeUsbGui.yml`) has been independently reviewed, tested locally with `flatpak-builder`, and curated directly by the human maintainer.
-- **Pull Request & Communications**: This submission, commit messages, and all ongoing discussion/review responses are conducted manually and directly by the human maintainer without automated AI agents.
-```
+---
 
+## 7. Open Items Before Flathub Submission
+
+### 7.1 Remove `--talk-name=org.freedesktop.Flatpak`
+Unused by the code and a sandbox escape. Remove it from the manifest (by hand, per 6.1).
+
+### 7.2 Prepare the `--filesystem=host:ro` justification
+Flathub prefers the file chooser portal. Be ready to explain in the PR that the same-disk collision check needs the real host path/device of the ISO; alternatively, evaluate narrowing it (e.g. `xdg-download:ro` + portal) and accepting a weaker check for portal paths.
+
+### 7.3 Replace the `type: dir` source
+Flathub builds from published sources. The `woeusb-gui` module must use a `git` source pinned to a tag + commit, or an `archive` of a GitHub release with `sha256`.
+
+### 7.4 Publish the screenshot on `main`
+The MetaInfo screenshot URL points to the `main` branch. Merge to `main` (or pin the URL to a tag) so `appstreamcli validate` passes with network checks, as Flathub's linter does.
+
+### 7.5 Architectures
+The bundled PySide6 wheels are `x86_64` only. Either add `aarch64` wheels (with `only-arches`) or restrict the app to x86_64 with a `flathub.json` containing `{"only-arches": ["x86_64"]}`.
+
+### 7.6 Runtime version
+Check that `org.kde.Platform//6.6` is not end-of-life at submission time; if it is, move to the current KDE 6.x branch and matching PySide6 wheels.
+
+### 7.7 App ID ownership
+Flathub requires control over the domain behind the app ID. `org.woeusb` implies ownership of `woeusb.org`. If that domain is not yours, switch to `io.github.castrocristiano.WoeUsbGui` (rename the ID in the manifest, desktop file, icon, MetaInfo and docs).
+
+### 7.8 Verification and lint
+Run `flatpak-builder-lint` on the manifest and build dir (Section 5) and fix all errors before opening the PR.
+
+---
+
+## 8. Submission Steps (manual)
+
+1. Fork [flathub/flathub](https://github.com/flathub/flathub) and branch from `new-pr`.
+2. Add your hand-written `org.woeusb.WoeUsbGui.yml` (and `flathub.json` if needed).
+3. Run `flatpak-builder-lint` locally.
+4. Open the PR against `new-pr`, with your own description, permission justifications (Section 3) and AI disclosure (Section 6.3).
+5. Answer reviewers yourself.

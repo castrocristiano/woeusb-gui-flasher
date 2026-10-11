@@ -1,83 +1,70 @@
 # Contributing to WoeUSB-GUI
 
-Thank you for your interest in contributing to **WoeUSB-GUI**! This project welcomes bug reports, feature suggestions, localization, and pull requests.
+Bug reports, feature ideas, translations and pull requests are welcome.
 
 ---
 
-## Code of Conduct & Development Principles
+## Development Principles
 
-- **Safety First**: Disk operations must NEVER touch non-removable or system storage devices. Every code change dealing with device discovery or disk actions must maintain strict filters protecting user data.
-- **Flathub & Sandbox Compatibility**: Any new feature or external dependency must function correctly within the Flatpak unprivileged sandbox.
-- **Multi-threaded Architecture**: Keep GUI responsive at all times. Long-running tasks (ISO extraction, WIM splitting, formatting) must run in `BurnWorker` (`QThread`), communicating strictly via Qt signals.
-
----
-
-## Getting Started
-
-### Local Development Setup
-
-1. **Prerequisites**:
-   - Python 3.11+
-   - `uv` (recommended) or `pip`
-   - `p7zip` (`7z`), `wimlib`, `udisks2`, `dosfstools`
-
-2. **Clone and Install**:
-   ```bash
-   git clone https://github.com/castrocristiano/woeusb-gui-flasher.git
-   cd woeusb-gui-flasher
-   uv sync
-   ```
-
-3. **Running the Application**:
-   ```bash
-   uv run woeusb-gui
-   # or using the launcher script:
-   ./run.sh
-   ```
+- **Safety first**: disk operations must never reach non-removable or system disks. Changes to device discovery or disk actions must keep the safety filters (≥ 2 GB, removable only, system mounts hidden, large-drive filter, same-disk collision check) intact and tested.
+- **Sandbox compatible**: features and dependencies must work inside the unprivileged Flatpak sandbox with the permissions listed in [docs/FLATHUB.md](docs/FLATHUB.md). Adding a `finish-args` permission needs a written justification.
+- **Responsive UI**: long tasks (formatting, extraction, WIM splitting) run in `BurnWorker` (`QThread`) and talk to the UI only through Qt signals.
 
 ---
 
-## Running Tests & Quality Checks
+## Setup
 
-Run the automated test suite before opening a pull request:
+Requirements: Python 3.11+, [uv](https://docs.astral.sh/uv/), and `p7zip`, `wimlib`, `udisks2`, `dosfstools`.
 
 ```bash
-# Run pytest in offscreen mode
-uv run pytest
-
-# Check code formatting with ruff
-uv run ruff check .
+git clone https://github.com/castrocristiano/woeusb-gui-flasher.git
+cd woeusb-gui-flasher
+uv sync
+uv run woeusb-gui   # or ./run.sh
 ```
 
-Verify AppStream and Desktop metadata:
+---
+
+## Checks (same as CI)
 
 ```bash
-# Validate Desktop entry
-desktop-file-validate assets/org.woeusb.WoeUsbGui.desktop
+uv run ruff check .
+uv run ruff format --check .
+QT_QPA_PLATFORM=offscreen uv run pytest -v --cov=src --cov-report=xml:coverage.xml
 
-# Validate AppStream MetaInfo
+desktop-file-validate assets/org.woeusb.WoeUsbGui.desktop
 appstreamcli validate --no-net --pedantic assets/org.woeusb.WoeUsbGui.metainfo.xml
 ```
 
----
-
-## Submitting Pull Requests
-
-1. Create a feature branch from `main`:
-   ```bash
-   git checkout -b feature/your-feature-name
-   ```
-2. Make your changes and commit with descriptive messages.
-3. Ensure all tests and validation checks pass.
-4. Push to your fork and submit a Pull Request with a clear description of the problem and solution.
+Optional SonarQube analysis: see the *SonarQube* section of the [README](README.md#sonarqube-optional-local).
 
 ---
 
-## Generative AI Contribution Policy
+## Workflow
 
-In alignment with [Flathub's Generative AI Policy](https://docs.flathub.org/docs/for-app-authors/requirements/):
+### Branches
+- `feature/<name>` (or `phase/<name>`) → PR into `develop`.
+- CI on `develop` opens/updates the `develop → main` PR automatically.
+- A merge into `main` creates a GitHub Release from the version in `pyproject.toml`.
 
-- **Disclosure**: If you used Generative AI to assist in writing code, tests, or documentation, disclose this in your pull request description along with the components affected.
-- **Human Verification**: All AI-assisted contributions must be verified, audited, and tested by you before submission. Automated unchecked AI code will be rejected.
-- **Packaging Manifests**: Flatpak manifests (`org.woeusb.WoeUsbGui.yml`) must not contain AI-generated content. All manifest changes must be authored, tested, and validated by human contributors.
+### Specifications
+New features follow Spec-Driven Development (spec-kit): each feature has a folder under `specs/NNN-name/` with `spec.md`, `plan.md`, `tasks.md`, contracts and a quickstart. Existing specs:
+- `001-woeusb-gui` — core application
+- `002-device-safety-filters` — large-drive filter and same-disk collision check
 
+### Pull requests
+1. Branch from `develop`.
+2. Keep commits focused and descriptive.
+3. Make sure all checks above pass.
+4. Describe the problem, the solution and how you tested it.
+
+---
+
+## Generative AI Policy
+
+This project is meant for Flathub, whose [requirements](https://docs.flathub.org/docs/for-app-authors/requirements) include a Generative AI policy:
+
+- **Disclose** AI assistance in your PR description, naming the affected files and the extent.
+- **Review and test** everything you submit; you must be able to explain it. Unreviewed generated code will be rejected.
+- **Do not use AI to write or edit the Flatpak manifest** (`org.woeusb.WoeUsbGui.yml`). Manifest changes must be authored by a human.
+- Never use AI tools or bots to interact with `flathub/flathub` (PRs, commits, comments, replies).

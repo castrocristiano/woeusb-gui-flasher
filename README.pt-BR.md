@@ -1,138 +1,132 @@
-# WoeUSB-GUI (Windows USB Flasher)
+# WoeUSB-GUI (Gravador de Pendrive Bootável do Windows)
 
-Aplicação desktop moderna em Python (**PySide6 / Qt 6**) para criação de pendrives inicializáveis do Windows no Linux (BigLinux, Arch Linux, Manjaro, Ubuntu, Debian, Fedora), empacotada universalmente via **Flatpak** (`org.woeusb.WoeUsbGui`).
+Aplicação desktop para Linux em Python e **PySide6 / Qt 6** que cria pendrives de instalação do Windows a partir de imagens ISO oficiais. Funciona nas principais distribuições (Arch Linux, Fedora, Ubuntu, Debian, BigLinux, Manjaro) e é empacotada como **Flatpak** (`org.woeusb.WoeUsbGui`).
 
-[![Flathub](https://img.shields.io/badge/Flathub-org.woeusb.WoeUsbGui-blue?logo=flathub)](https://flathub.org/apps/org.woeusb.WoeUsbGui)
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
 ![Python: >=3.11](https://img.shields.io/badge/Python->=3.11-green.svg)
 ![Qt: 6 (PySide6)](https://img.shields.io/badge/Qt-6-green.svg)
-![AppStream: Validated](https://img.shields.io/badge/AppStream-Validated-brightgreen.svg)
+![Flathub: ainda não publicado](https://img.shields.io/badge/Flathub-ainda%20n%C3%A3o%20publicado-lightgrey?logo=flathub)
 
 🌐 **Idioma**: [English](README.md) | **Português (Brasil)**
+
+> [!NOTE]
+> O WoeUSB-GUI **ainda não está no Flathub**. Veja em [docs/FLATHUB.md](docs/FLATHUB.md) o status da submissão e as pendências que precisam ser resolvidas antes.
 
 ---
 
 ## 📸 Interface
 
-![Interface do WoeUSB-GUI](assets/screenshots/main-window.png)
+![Janela principal do WoeUSB-GUI](assets/screenshots/main-window.png)
 
 ---
 
-## ✨ Principais Funcionalidades
+## ✨ Funcionalidades
 
-- **Segurança Absoluta contra Destruição de Dados**:
-  - Detecção rigorosa de dispositivos via D-Bus `UDisks2` e `lsblk`.
-  - Exibição **estrita** de dispositivos USB removíveis com capacidade $\ge$ 2 GB.
-  - Bloqueio e ocultação incondicional de discos internos e partições de sistema (`/`, `/boot`, `/home`, swap).
-  - Diálogo modal de confirmação explícito detalhando fabricante, modelo, capacidade e caminho do dispositivo.
-- **Extração Segura em Espaço de Usuário**:
-  - Extração direta dos arquivos da ISO do Windows utilizando `7z` (`p7zip`), eliminando a necessidade de comandos inseguros de root (`mount -o loop`).
-- **Suporte Automático a UEFI Secure Boot (FAT32)**:
-  - Formatação em partição FAT32 com estrutura de inicialização UEFI padrão (`/efi/boot/bootx64.efi`).
-  - Divisão automática de arquivos `install.wim` maiores que 4 GB em volumes `.swm` via `wimlib-imagex split`, superando o limite de tamanho de arquivo do FAT32.
-- **Interface Gráfica Moderna e Responsiva (Qt 6)**:
-  - Motor assíncrono em thread dedicada (`QThread`) mantendo a interface fluida a 60 FPS.
-  - Barra de progresso suave, cálculo de velocidade estimada e etapas em tempo real.
-  - Gaveta expansível de logs detalhados com opção de cópia para a área de transferência.
-  - Cancelamento seguro a qualquer momento com encerramento limpo de subprocessos e desmontagem.
-- **Conformidade com Diretrizes do Flathub**:
-  - Sandbox estrito e metadados AppStream validados segundo os padrões de qualidade do Flathub.
+### Segurança dos discos
+- Descoberta de dispositivos pelo serviço **UDisks2** do sistema (D-Bus), com `lsblk` como alternativa.
+- Só lista **pendrives USB removíveis ≥ 2 GB**. Discos internos, swap e qualquer disco com ponto de montagem do sistema (`/`, `/boot`, `/home`, …) nunca aparecem.
+- **Filtro de discos grandes**: a opção *"Ocultar discos grandes (> 64 GB)"* vem **ativada por padrão** e esconde unidades acima de 64 GiB (68,7 GB), para que HDs/SSDs externos de backup não sejam oferecidos por engano. Desmarque para exibi-los.
+- **Verificação de mesmo disco**: se a ISO escolhida estiver no mesmo disco físico do destino (em qualquer partição, com symlinks resolvidos), o botão *Iniciar* fica desabilitado com a explicação. A verificação é repetida logo antes de qualquer desmontagem ou formatação.
+- Diálogo de confirmação com fabricante, modelo, capacidade e caminho do dispositivo antes de apagar qualquer coisa.
+
+### Gravação
+- Extração da ISO em espaço de usuário com `7z` (p7zip), sem `mount -o loop` e sem root.
+- Destino em FAT32 com a estrutura UEFI padrão (`/efi/boot/bootx64.efi`).
+- `install.wim` maior que 4 GB é dividido em partes `.swm` com `wimlib-imagex split`, mantendo o pendrive compatível com FAT32 / UEFI Secure Boot.
+
+### Interface
+- Toda operação longa roda em um `QThread` dedicado; a interface continua responsiva.
+- Barra de progresso, etapa atual, estimativa de velocidade e painel de log expansível com cópia para a área de transferência.
+- Cancelamento seguro: subprocessos são encerrados e o pendrive é desmontado corretamente.
 
 ---
 
-## 🚀 Como Executar
+## 🚀 Instalação e Uso
 
-### 1. Instalar via Flathub (Recomendado)
+### 1. Compilar e executar o Flatpak localmente
 
-Assim que publicado no Flathub, o aplicativo pode ser instalado e executado diretamente com:
-
-```bash
-# Instalar do Flathub
-flatpak install flathub org.woeusb.WoeUsbGui
-
-# Executar a aplicação
-flatpak run org.woeusb.WoeUsbGui
-```
-
-### 2. Construindo e Testando com Flatpak Localmente
-
-O WoeUSB-GUI utiliza o runtime KDE 6.6 (`org.kde.Platform`), que oferece suporte nativo completo ao PySide6 e Qt 6:
+O manifesto usa o runtime KDE 6.6 e empacota as wheels do PySide6 6.6.3 (x86_64).
 
 ```bash
-# 1. Instalar runtime e SDK do KDE 6.6
+# Runtime e SDK do KDE 6.6
 flatpak install flathub org.kde.Platform//6.6 org.kde.Sdk//6.6
 
-# 2. Compilar o pacote Flatpak
+# Compilar e instalar na instalação do usuário
 flatpak-builder --force-clean --user --install build-dir org.woeusb.WoeUsbGui.yml
 
-# 3. Executar o Flatpak instalado
+# Executar
 flatpak run org.woeusb.WoeUsbGui
 ```
 
-### 3. Executando Localmente a partir do Código-Fonte (Desenvolvimento)
+> [!TIP]
+> Se o build falhar com `fuse: mount failed` (containers, ambientes restritos), acrescente `--disable-rofiles-fuse`.
 
-#### Requisitos:
-- Python 3.11+
-- [uv](https://docs.astral.sh/uv/) (ou `venv` + `pip`)
-- Dependências de sistema: `p7zip` (`7z`), `wimlib`, `dosfstools` (`mkfs.vfat`), `udisks2`
+### 2. Executar a partir do código-fonte (desenvolvimento)
+
+Requisitos:
+- Python 3.11+ e [uv](https://docs.astral.sh/uv/) (ou `venv` + `pip`)
+- Ferramentas do sistema: `p7zip` (`7z`), `wimlib`, `dosfstools` (`mkfs.vfat`), `udisks2`
 
 ```bash
-# Clonar o repositório
 git clone https://github.com/castrocristiano/woeusb-gui-flasher.git
 cd woeusb-gui-flasher
-
-# Sincronizar o ambiente com uv
 uv sync
-
-# Iniciar a aplicação
-uv run woeusb-gui
-# ou pelo script auxiliar:
-./run.sh
+uv run woeusb-gui        # ou: ./run.sh
 ```
 
 ---
 
 ## 🔒 Permissões do Sandbox Flatpak
 
-Para operar com segurança dentro do sandbox Flatpak gerenciando discos USB, o aplicativo requer as seguintes permissões declaradas:
-
 | Permissão | Justificativa |
 | :--- | :--- |
-| `--system-talk-name=org.freedesktop.UDisks2` | Permite enumerar pendrives, formatar partições e gerenciar pontos de montagem via serviço UDisks2 do sistema sem privilégios de root. |
-| `--filesystem=/run/media:rw` | Permite gravar os arquivos da instalação do Windows nos pontos de montagem do pendrive criados pelo UDisks2. |
-| `--filesystem=host:ro` | Permite ao usuário selecionar imagens `.iso` do Windows localizadas na pasta pessoal, Downloads ou discos secundários. |
-| `--socket=wayland` / `--socket=fallback-x11` | Suporte nativo a sessões Wayland e compatibilidade com X11. |
-| `--device=dri` | Aceleração gráfica por hardware para a interface Qt 6. |
-
-Para detalhes aprofundados sobre empacotamento, consulte [docs/FLATHUB.md](docs/FLATHUB.md).
+| `--system-talk-name=org.freedesktop.UDisks2` | Listar pendrives, formatar, montar e desmontar pelo UDisks2 do sistema, sem root. |
+| `--filesystem=/run/media:rw` | Gravar os arquivos do Windows no ponto de montagem criado pelo UDisks2. |
+| `--filesystem=host:ro` | Ler a `.iso` de qualquer lugar do sistema e descobrir em qual disco físico ela está (verificação de mesmo disco). |
+| `--socket=wayland` / `--socket=fallback-x11` | Exibição em Wayland, com X11 como alternativa. |
+| `--share=ipc` / `--device=dri` | Memória compartilhada do X11 e renderização acelerada por GPU. |
+| `--talk-name=org.freedesktop.Flatpak` | ⚠️ Está no manifesto mas **não é usada pelo código**; será removida antes da submissão (ver [docs/FLATHUB.md](docs/FLATHUB.md#7-open-items-before-flathub-submission)). |
 
 ---
 
-## 🧪 Testes Automatizados e Validação
-
-### Suíte de Testes
-
-O projeto conta com testes unitários, de contrato e de interface gráfica (`pytest`, `pytest-qt`):
+## 🧪 Testes e Qualidade
 
 ```bash
-# Executar todos os testes em modo headless (offscreen)
-uv run pytest
+# Lint e verificação de formatação (igual ao CI)
+uv run ruff check .
+uv run ruff format --check .
 
-# Executar com relatório de cobertura
-uv run pytest --cov=woeusb_gui_flasher
-```
+# Testes (headless) com cobertura
+QT_QPA_PLATFORM=offscreen uv run pytest -v --cov=src --cov-report=xml:coverage.xml
 
-### Validação de Metadados AppStream e Desktop
-
-Validação com as ferramentas de conformidade do Flathub:
-
-```bash
-# Validar arquivo desktop
+# Arquivo desktop e metadados AppStream
 desktop-file-validate assets/org.woeusb.WoeUsbGui.desktop
-
-# Validar metadados AppStream (modo pedante)
 appstreamcli validate --no-net --pedantic assets/org.woeusb.WoeUsbGui.metainfo.xml
 ```
+
+A suíte cobre modelos, disk manager, filtros de segurança, motor de gravação, cancelamento, interface e os contratos UDisks2 / Flatpak / burn engine.
+
+### SonarQube (opcional, local)
+
+Servidor e scanner SonarQube locais estão definidos em [docker-compose.yml](docker-compose.yml) (Docker ou Podman):
+
+```bash
+docker compose up -d sonarqube                       # ou: podman-compose up -d sonarqube
+docker compose --profile scan run --rm sonar-scanner # rodar depois de gerar o coverage.xml
+docker compose down
+```
+
+### Integração Contínua
+
+O [.github/workflows/ci.yml](.github/workflows/ci.yml) roda em pushes para `feature/**`, `phase/**`, `develop`, `main` e em PRs:
+
+1. **Build & Test**: `uv sync`, `ruff check`, `ruff format --check`, `pytest` com cobertura.
+2. **SonarQube**: análise + Quality Gate em um SonarQube efêmero.
+3. **Auto PR**: no `develop`, abre/atualiza o PR `develop → main`.
+4. **Release**: no `main`, cria uma GitHub Release com a versão do `pyproject.toml`.
+
+> [!IMPORTANT]
+> Essa automação vale **só para este repositório**. Nada no CI interage com `flathub/flathub`; veja a seção de política de IA em [docs/FLATHUB.md](docs/FLATHUB.md#6-flathub-generative-ai-policy-compliance).
 
 ---
 
@@ -140,51 +134,52 @@ appstreamcli validate --no-net --pedantic assets/org.woeusb.WoeUsbGui.metainfo.x
 
 ```
 woeusb-gui-flasher/
+├── .github/workflows/ci.yml             # CI: lint, testes, SonarQube, auto PR, release
 ├── assets/
-│   ├── org.woeusb.WoeUsbGui.desktop     # Integração de lançador desktop
-│   ├── org.woeusb.WoeUsbGui.metainfo.xml # Metadados AppStream / Flathub
-│   ├── org.woeusb.WoeUsbGui.svg         # Ícone vetorial da aplicação
-│   └── screenshots/
-│       └── main-window.png              # Captura de tela para Flathub e AppStream
-├── docs/
-│   └── FLATHUB.md                       # Guia detalhado de empacotamento Flathub
-├── specs/
-│   └── 001-woeusb-gui/                  # Artefatos Spec-Driven Development
-├── src/
-│   └── woeusb_gui_flasher/
-│       ├── main.py                      # Entry point da aplicação
-│       ├── models.py                    # Entidades de domínio e dataclasses
-│       ├── utils.py                     # Formatação de bytes e helpers de subprocesso
-│       ├── disk_manager.py              # Descoberta segura de discos (UDisks2/lsblk)
-│       ├── burn_engine.py               # Motor assíncrono de gravação (BurnWorker QThread)
-│       └── ui/
-│           ├── components.py            # Componentes visuais e cards reutilizáveis
-│           └── main_window.py           # Janela principal e diálogo de confirmação
-├── tests/                               # Suíte completa de testes unitários e de contrato
-├── CONTRIBUTING.md                      # Diretrizes de contribuição
+│   ├── org.woeusb.WoeUsbGui.desktop     # Entrada desktop
+│   ├── org.woeusb.WoeUsbGui.metainfo.xml# Metadados AppStream
+│   ├── org.woeusb.WoeUsbGui.svg         # Ícone
+│   └── screenshots/main-window.png      # Captura usada no AppStream / README
+├── docs/FLATHUB.md                      # Empacotamento, permissões, política de IA, pendências
+├── specs/                               # Artefatos de Spec-Driven Development
+│   ├── 001-woeusb-gui/                  #   aplicação principal
+│   └── 002-device-safety-filters/       #   filtro de discos grandes + verificação de mesmo disco
+├── src/woeusb_gui_flasher/
+│   ├── main.py                          # Ponto de entrada
+│   ├── models.py                        # Dataclasses e limiares (mín. 2 GB, "grande" > 64 GiB)
+│   ├── utils.py                         # Formatação de bytes, helpers de subprocesso
+│   ├── disk_manager.py                  # Descoberta, filtros de segurança, colisão, desmontagem
+│   ├── burn_engine.py                   # BurnWorker (QThread): formata, extrai, divide WIM
+│   └── ui/
+│       ├── components.py                # Widgets reutilizáveis
+│       └── main_window.py               # Janela principal e diálogo de confirmação
+├── tests/                               # Testes unitários, de contrato e de interface
+├── CONTRIBUTING.md
+├── docker-compose.yml                   # SonarQube + scanner locais
 ├── org.woeusb.WoeUsbGui.yml             # Manifesto Flatpak
-└── pyproject.toml                       # Metadados do pacote Python e dependências
+├── pyproject.toml
+└── run.sh                               # Launcher auxiliar
 ```
 
 ---
 
 ## 🤝 Contribuindo
 
-Contribuições são bem-vindas! Consulte o arquivo [CONTRIBUTING.md](CONTRIBUTING.md) para diretrizes sobre estilo de código, testes e processo de pull requests.
+Veja [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ---
 
-## 🤖 Declaração sobre Uso de IA Generativa
+## 🤖 Declaração de Uso de IA Generativa
 
-Em total conformidade com a [Política de IA Generativa do Flathub](https://docs.flathub.org/docs/for-app-authors/requirements/):
+Conforme os [requisitos e a política de IA Generativa do Flathub](https://docs.flathub.org/docs/for-app-authors/requirements):
 
-- **Código da Aplicação e Documentação**: Partes da base de código, suíte de testes e documentação foram desenvolvidas com o auxílio de ferramentas de IA Generativa (assistentes de código LLM) sob supervisão direta, arquitetura e revisão humana.
-- **Verificação Humana e Segurança**: Toda a lógica crítica — especialmente os filtros de segurança de detecção de discos USB, comunicação com o UDisks2 e rotinas de divisão de WIM — foi auditada, testada e validada pelo mantenedor.
-- **Manifesto e Empacotamento Flatpak**: O manifesto Flatpak (`org.woeusb.WoeUsbGui.yml`) é mantido, revisado e testado localmente por desenvolvedor humano. Conforme as regras do Flathub, todas as submissões de pull requests, mensagens de commit e respostas aos revisores são conduzidas manualmente pelo mantenedor sem automações de agentes de IA.
+- **Código, testes e documentação** (incluindo este README, o `CONTRIBUTING.md` e o `docs/FLATHUB.md`) foram produzidos com auxílio substancial de assistentes de código com IA Generativa, sob direção e revisão do mantenedor humano.
+- **Lógica crítica de segurança** (filtro de discos, detecção de mesmo disco, chamadas ao UDisks2, formatação e divisão do WIM) é revisada e testada pelo mantenedor e coberta por testes automatizados.
+- **Manifesto Flatpak**: o Flathub não aceita manifestos gerados ou assistidos por IA, mesmo com declaração. O manifesto submetido ao Flathub será escrito e mantido pelo mantenedor humano.
+- **Submissão ao Flathub**: o pull request, as mensagens de commit e todas as respostas aos revisores do Flathub são escritos manualmente pelo mantenedor, sem agentes de IA.
 
 ---
 
 ## 📜 Licença
 
-Distribuído sob a licença **GPL-3.0-or-later**. Consulte o arquivo [LICENSE](LICENSE) para mais informações. Os metadados AppStream são licenciados sob **CC0-1.0**.
-
+**GPL-3.0-or-later**: veja [LICENSE](LICENSE). Os metadados AppStream são licenciados sob **CC0-1.0**.
