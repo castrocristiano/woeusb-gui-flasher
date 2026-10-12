@@ -391,8 +391,8 @@ def test_stream_output_chunks_cancel_terminates(qapp, tmp_path):
     worker = make_worker(tmp_path)
     worker._abort_requested = True
     proc = FakeProcess("line\n")
-    handled = []
-    worker._stream_output_chunks(proc, handled.append)
+    handled: list[str] = []
+    worker._stream_output_chunks(proc, handled.append)  # type: ignore[arg-type]
     assert proc.terminated is True
     assert handled == []
 

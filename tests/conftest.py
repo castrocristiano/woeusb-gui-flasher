@@ -19,8 +19,10 @@ def qapp():
     return app
 
 
+@pytest.hookimpl(trylast=True)
 def pytest_sessionfinish(session, exitstatus):
     """Clean exit to prevent PySide6 ABI shutdown crash on Python 3.14."""
-    import os
+    import sys
 
-    os._exit(exitstatus)
+    if sys.version_info >= (3, 14) and not os.environ.get("TEST_RUN_PIPE"):
+        os._exit(exitstatus)
