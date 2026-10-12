@@ -1,0 +1,124 @@
+# ==============================================================================
+# WoeUSB-GUI Flasher — English Reference Translation Catalog (en)
+# Format: key = value (UTF-8 plain text)
+# - Lines starting with '#' are comments.
+# - Named placeholders use {name} and can be reordered freely in translations.
+# - Escape '\n' produces a line break.
+# - Plural variants use '.one' (count == 1) and '.other' (count != 1).
+# ==============================================================================
+
+# --- CLI & Application Entry ---
+app.cli.description = WoeUSB GUI Flasher — Universal Windows USB creation tool for Linux.
+app.cli.verbose_help = Enable detailed debug logs
+
+# --- Domain & Validation Errors ---
+model.validation.ineligible_device = Target device {device_path} is not eligible for writing.
+model.validation.iso_not_found = ISO image file '{iso_path}' was not found.
+model.validation.insufficient_space = Insufficient space: USB drive has {device_size}, but the ISO requires {iso_size}.
+
+# --- Disk Discovery & Same-Disk Collision Protection ---
+disk.collision.no_block_device = Source is on a filesystem without a direct block device.
+disk.collision.same_disk = The selected ISO image ({iso_name}) is stored on the same physical disk ({source_parent}) as the target device ({target_path}). To prevent data loss and corruption, select another USB drive or move the ISO to another disk.
+disk.collision.different_disks = Source and target are on different physical disks.
+device.partition_count.one = {count} partition
+device.partition_count.other = {count} partitions
+
+# --- Burn Engine Stages, Progress & Execution Logs ---
+burn.log.cancel_requested = Cancellation request received from user...
+burn.log.critical_error = CRITICAL ERROR: {error}
+burn.status.operation_failed = Operation failed: {error}
+burn.log.banner_start = === Starting WoeUSB GUI Flasher ===
+burn.log.selected_iso = Selected ISO: {iso_path} ({iso_size})
+burn.log.target_device = Target device: {device_path} ({device_size})
+burn.log.filesystem = Filesystem: {filesystem}
+burn.stage.validating = Validating requirements and images...
+burn.stage.unmounting = Unmounting existing partitions...
+burn.log.unmounting_active = Unmounting active partitions on {device_path}...
+burn.stage.partitioning = Creating partition table and formatting...
+burn.stage.extracting_iso = Extracting files from ISO image...
+burn.stage.splitting_wim = Checking installation image size...
+burn.stage.configuring_boot = Configuring UEFI/BIOS bootloader...
+burn.stage.finalizing = Synchronizing disk buffers (sync)...
+burn.log.flushing_buffers = Ensuring all buffers are written to disk...
+burn.stage.completed = Completed successfully!
+burn.status.completed = Burning finished successfully!
+burn.log.completed_banner = === Burning completed successfully! You may now remove the USB drive. ===
+burn.result.success_message = Bootable Windows USB drive created successfully!
+burn.stage.cancelled_by_user = Operation cancelled by user.
+burn.status.cancelled = Operation cancelled.
+burn.log.cancelled_banner = === Process cancelled by user. Cleanup completed. ===
+burn.log.dry_run_formatting = [DRY-RUN] Formatting {device_path} as {filesystem} with label '{label}'...
+burn.log.formatting_partition = Formatting partition {partition} as {filesystem}...
+burn.log.mounting_partition = Mounting target partition...
+burn.log.formatted_udisksctl = Partition formatted via udisksctl: {output}
+burn.log.formatted_gdbus = Partition formatted via UDisks2 (D-Bus): {partition}
+burn.log.udisks2_format_warning = UDisks2 format warning: {output}
+burn.error.format_failed = Failed to format partition: {output}
+burn.log.formatted_mkfs = Partition formatted successfully via mkfs: {tool}
+burn.log.mounted_udisksctl = Mounted via udisksctl at {mount_path}
+burn.log.mounted_gdbus = Mounted via UDisks2 (D-Bus) at {mount_path}
+burn.error.missing_7z = The '7z' (p7zip) utility is required but was not found on the system.
+burn.log.starting_7z = Starting 7z extraction to {mount_path}...
+burn.error.extract_7z_failed = File extraction with 7z failed with exit code {returncode}
+burn.log.dry_run_extract = [DRY-RUN] Simulating file extraction...
+burn.log.wim_excluded_fat32 = install.wim > 4 GB: excluding from direct FAT32 extraction to avoid 4 GB file size limit...
+burn.progress.copying_files = Copying files: {percent}% ({transferred} / {total})
+burn.progress.speed_eta = Write: {speed} MB/s | Remaining: {eta}
+burn.log.copy_milestone = [COPY] {stage_desc} | Speed: {speed} MB/s | ETA: {eta}
+burn.log.wim_split_starting = install.wim is {size_gb} GB (> 4 GB). Starting split with wimlib-imagex...
+burn.error.missing_wimlib = The 'wimlib-imagex' utility is required to split WIM files > 4 GB on FAT32.
+burn.log.wim_split_completed = install.wim split completed successfully! .swm volumes created.
+burn.log.wim_split_not_needed = install.wim does not exceed the 4 GB FAT32 limit. Splitting is not required.
+burn.log.extracting_wim_temp = Extracting install.wim to temporary storage at {temp_dir}...
+burn.error.extract_wim_failed = Failed to extract install.wim: exit code {returncode}
+burn.progress.splitting_wim = Splitting install.wim: {percent}% ({transferred} / {total})
+burn.log.splitting_wim_volumes = Splitting install.wim into {chunk_mb} MB .swm volumes directly onto the USB drive...
+burn.log.executing_cmd = Executing: {cmd}
+burn.error.wim_split_failed = Failed to split install.wim with exit code {returncode}
+burn.log.bootloader_copy_fallback = Copying {source_efi} to /efi/boot/{target_efi} for UEFI compatibility...
+burn.log.bootloader_missing_warning = Warning: /efi/boot/{target_efi} not found on media. Legacy bootloader may be required.
+burn.log.bootloader_verified = UEFI bootloader verified successfully: /efi/boot/{target_efi} is present.
+
+# --- UI: ISO Selector Card ---
+ui.iso.title = <b>1. Windows Installation Image (ISO)</b>
+ui.iso.none_selected = No ISO file selected...
+ui.iso.browse_button = Browse...
+ui.iso.dialog_title = Select Windows ISO Image
+ui.iso.dialog_filter = Disk Images (*.iso);;All Files (*)
+ui.iso.details_size = Size: {size}
+ui.iso.details_wim_detected =  | Image: install.wim detected
+ui.iso.details_esd_detected =  | Image: install.esd detected
+
+# --- UI: Drive Selector Card ---
+ui.drive.title = <b>2. Target USB Drive</b>
+ui.drive.refresh_button = Refresh
+ui.drive.hide_large_checkbox = Hide large drives (> 64 GB)
+ui.drive.hide_large_tooltip = Hides high-capacity external hard drives and SSDs to prevent accidental selection of backup media.
+ui.drive.eligible_notice = Only eligible removable USB drives are shown.
+ui.drive.none_detected_filtered = No USB drive detected (uncheck 'Hide large drives' if using an external HDD/SSD)
+ui.drive.none_detected = No removable USB drive detected
+
+# --- UI: Formatting & Boot Options Card ---
+ui.options.title = <b>3. Formatting and Boot Options</b>
+ui.options.fat32_recommended = FAT32 (Recommended - UEFI + Legacy BIOS)
+ui.options.ntfs = NTFS
+
+# --- UI: Progress Card & Log Drawer ---
+ui.progress.ready = Ready to start burning.
+ui.log.hide_button = ▼ Hide Logs
+ui.log.show_button = ▶ Show Logs
+ui.log.copy_button = Copy Logs
+
+# --- UI: Main Window & Dialogs ---
+ui.main.window_title = WoeUSB-GUI Flasher
+ui.main.start_burn_button = Start Burning
+ui.main.cancel_button = Cancel Operation
+ui.main.confirm_format_title = Confirm USB Media Formatting
+ui.main.confirm_format_body = <b>WARNING: DESTRUCTIVE AND IRREVERSIBLE OPERATION!</b><br><br>You are about to format the selected device:<br>• <b>Path:</b> {path}<br>• <b>Model / Vendor:</b> {vendor} {model}<br>• <b>Capacity:</b> {size}<br><br><b>ALL DATA ON THIS USB DRIVE WILL BE PERMANENTLY ERASED.</b><br><br>Do you really want to continue?
+ui.main.confirm_cancel_title = Confirm Cancellation
+ui.main.confirm_cancel_body = Are you sure you want to cancel the ongoing burn operation?
+ui.main.finished_success_title = Burning Completed
+ui.main.finished_success_body = Success!\n{message}
+ui.main.finished_failure_title = Operation Not Completed
+ui.main.finished_failure_body = Notice:\n{message}
+

@@ -115,5 +115,5 @@ def test_burn_configuration_validation(tmp_path):
 
     # Test error with invalid device
     device.is_system_drive = True
-    with pytest.raises(ValueError, match="não é elegível"):
+    with pytest.raises(ValueError, match=r"(não é elegível|not eligible)"):
         config.validate()

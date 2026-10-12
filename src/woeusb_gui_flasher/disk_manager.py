@@ -9,6 +9,7 @@ import subprocess
 from pathlib import Path
 from typing import Any
 
+from woeusb_gui_flasher.i18n import tr
 from woeusb_gui_flasher.models import DiskCollisionCheckResult, StorageDevice
 from woeusb_gui_flasher.utils import find_binary, format_bytes
 
@@ -126,18 +127,18 @@ class DiskManager:
         if not source_part:
             return DiskCollisionCheckResult(
                 has_collision=False,
-                message="Origem em sistema de arquivos sem dispositivo de bloco direto.",
+                message=tr("disk.collision.no_block_device"),
             )
 
         source_parent = self.get_parent_disk_name(source_part)
         target_parent = self.get_parent_disk_name(target_device.path)
 
         if source_parent and target_parent and source_parent == target_parent:
-            msg = (
-                f"A imagem ISO selecionada ({iso_p.name}) está armazenada no mesmo disco físico "
-                f"({source_parent}) que o dispositivo de destino ({target_device.path}). "
-                "Para evitar perda de dados e corrupção, selecione outro pendrive ou transfira "
-                "a ISO para outro disco."
+            msg = tr(
+                "disk.collision.same_disk",
+                iso_name=iso_p.name,
+                source_parent=source_parent,
+                target_path=target_device.path,
             )
             logger.warning("Same-disk collision detected: %s == %s", source_parent, target_parent)
             return DiskCollisionCheckResult(
@@ -153,7 +154,7 @@ class DiskManager:
             source_partition=source_part,
             source_parent_disk=source_parent,
             target_parent_disk=target_parent,
-            message="Origem e destino em discos físicos distintos.",
+            message=tr("disk.collision.different_disks"),
         )
 
     def filter_safe_device(self, device: StorageDevice, hide_large_drives: bool = True) -> bool:

@@ -137,4 +137,4 @@ def test_drive_selector_tooltip_and_empty_state(qapp):
     # Test empty state with filter active
     card.chk_hide_large.setChecked(True)
     card.populate_devices([])
-    assert "desmarque" in card.combo_drives.itemText(0).lower()
+    assert any(w in card.combo_drives.itemText(0).lower() for w in ("desmarque", "uncheck"))
