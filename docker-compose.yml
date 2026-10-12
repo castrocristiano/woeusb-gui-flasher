@@ -1,0 +1,67 @@
+version: '3.8'
+
+# ==============================================================================
+# Docker Compose para SonarQube Local / CI
+# ==============================================================================
+# Uso:
+#   Subir o SonarQube para testes locais/CI:
+#     podman-compose up -d sonarqube
+#     (ou docker compose up -d sonarqube)
+#
+#   Executar a análise do scanner:
+#     podman-compose --profile scan run --rm sonar-scanner
+#
+#   Parar os serviços:
+#     podman-compose down
+# ==============================================================================
+
+services:
+  sonarqube:
+    image: docker.io/library/sonarqube:community
+    container_name: sonarqube-ci
+    restart: unless-stopped
+    ports:
+      - "9000:9000"
+    environment:
+      - SONAR_ES_BOOTSTRAP_CHECKS_DISABLE=true
+    volumes:
+      - sonarqube_data:/opt/sonarqube/data
+      - sonarqube_extensions:/opt/sonarqube/extensions
+      - sonarqube_logs:/opt/sonarqube/logs
+    healthcheck:
+      test: ["CMD-SHELL", "curl -s -f http://localhost:9000/api/system/status | grep -q '\"status\":\"UP\"'"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 30s
+
+  sonar-scanner:
+    image: docker.io/sonarsource/sonar-scanner-cli:latest
+    container_name: sonar-scanner-ci
+    depends_on:
+      sonarqube:
+        condition: service_healthy
+    network_mode: "host"
+    volumes:
+      - .:/usr/src:Z
+    environment:
+      - SONAR_HOST_URL=${SONAR_HOST_URL:-http://localhost:9000}
+      - SONAR_TOKEN=${SONAR_TOKEN:-admin1234}
+    command: >
+      -Dsonar.projectKey=woeusb-gui-flasher
+      -Dsonar.sources=src
+      -Dsonar.tests=tests
+      -Dsonar.python.coverage.reportPaths=coverage.xml
+      -Dsonar.exclusions="**/__pycache__/**,**/*.pyc,**/.venv/**"
+      -Dsonar.coverage.exclusions="tests/**,**/__init__.py"
+    profiles:
+      - scan
+
+volumes:
+  sonarqube_data:
+    driver: local
+  sonarqube_extensions:
+    driver: local
+  sonarqube_logs:
+    driver: local
+

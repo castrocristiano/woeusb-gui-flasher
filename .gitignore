@@ -32,24 +32,35 @@ ENV/
 htmlcov/
 coverage.xml
 
-# SonarQube
+# SonarQube, Local Scripts & Tokens
 .sonar/
 .scannerwork/
+.sonar*
+sonar_check.sh
+*.local.sh
+*token*
+*.token
+*.key
+*.secret
 
 # Flatpak build artifacts
 .flatpak-builder/
 builddir/
+build-dir/
+repo/
+.flatpak/
 *.flatpak
 
 # Environment & Secrets
 .env
+.env.*
 *.local.env
 
-# IDEs
+# Local scratch & temporary files
+scratch/
+
+# IDEs & Editor configurations
 .idea/
-.vscode/*
-!.vscode/settings.json
-!.vscode/tasks.json
-!.vscode/launch.json
+.vscode/
 *.swp
 *.swo
