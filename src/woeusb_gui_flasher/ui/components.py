@@ -22,6 +22,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from woeusb_gui_flasher.i18n import tr
 from woeusb_gui_flasher.models import BootMode, FileSystemType, StorageDevice, WindowsISO
 from woeusb_gui_flasher.utils import inspect_iso_file
 
@@ -57,15 +58,15 @@ class IsoSelectorCard(CardFrame):
     def _setup_ui(self) -> None:
         layout = QVBoxLayout(self)
 
-        title = QLabel("<b>1. Imagem de Instalação do Windows (ISO)</b>")
+        title = QLabel(tr("ui.iso.title"))
         layout.addWidget(title)
 
         row = QHBoxLayout()
-        self.lbl_path = QLabel("Nenhum arquivo ISO selecionado...")
+        self.lbl_path = QLabel(tr("ui.iso.none_selected"))
         self.lbl_path.setStyleSheet("color: gray;")
         row.addWidget(self.lbl_path, stretch=1)
 
-        btn_browse = QPushButton("Procurar...")
+        btn_browse = QPushButton(tr("ui.iso.browse_button"))
         btn_browse.clicked.connect(self._on_browse_clicked)
         row.addWidget(btn_browse)
         layout.addLayout(row)
@@ -77,9 +78,9 @@ class IsoSelectorCard(CardFrame):
     def _on_browse_clicked(self) -> None:
         file_path, _ = QFileDialog.getOpenFileName(
             self,
-            "Selecionar Imagem ISO do Windows",
+            tr("ui.iso.dialog_title"),
             str(Path.home()),
-            "Imagens de Disco (*.iso);;Todos os Arquivos (*)",
+            tr("ui.iso.dialog_filter"),
         )
         if file_path:
             self.set_iso_path(Path(file_path))
@@ -99,11 +100,11 @@ class IsoSelectorCard(CardFrame):
         self.lbl_path.setText(str(path))
         self.lbl_path.setStyleSheet("font-weight: bold;")
 
-        details = f"Tamanho: {self._current_iso.size_human}"
+        details = tr("ui.iso.details_size", size=self._current_iso.size_human)
         if self._current_iso.has_install_wim:
-            details += " | Imagem: install.wim detectado"
+            details += f" {tr('ui.iso.details_wim_detected')}"
         elif self._current_iso.has_install_esd:
-            details += " | Imagem: install.esd detectado"
+            details += f" {tr('ui.iso.details_esd_detected')}"
         self.lbl_details.setText(details)
 
         self.iso_selected.emit(self._current_iso)
@@ -127,7 +128,7 @@ class DriveSelectorCard(CardFrame):
     def _setup_ui(self) -> None:
         layout = QVBoxLayout(self)
 
-        title = QLabel("<b>2. Pendrive / Mídia USB de Destino</b>")
+        title = QLabel(tr("ui.drive.title"))
         layout.addWidget(title)
 
         row = QHBoxLayout()
@@ -135,20 +136,18 @@ class DriveSelectorCard(CardFrame):
         self.combo_drives.currentIndexChanged.connect(self._on_selection_changed)
         row.addWidget(self.combo_drives, stretch=1)
 
-        self.btn_refresh = QPushButton("Atualizar")
+        self.btn_refresh = QPushButton(tr("ui.drive.refresh_button"))
         self.btn_refresh.clicked.connect(lambda: self.refresh_requested.emit())
         row.addWidget(self.btn_refresh)
         layout.addLayout(row)
 
-        self.chk_hide_large = QCheckBox("Ocultar discos grandes (> 64 GB)")
+        self.chk_hide_large = QCheckBox(tr("ui.drive.hide_large_checkbox"))
         self.chk_hide_large.setChecked(True)
-        self.chk_hide_large.setToolTip(
-            "Oculta discos rígidos externos e SSDs de grande capacidade para evitar seleção acidental de mídias de backup."
-        )
+        self.chk_hide_large.setToolTip(tr("ui.drive.hide_large_tooltip"))
         self.chk_hide_large.toggled.connect(self._on_filter_toggled)
         layout.addWidget(self.chk_hide_large)
 
-        self.lbl_warning = QLabel("Apenas pendrives USB removíveis elegíveis são exibidos.")
+        self.lbl_warning = QLabel(tr("ui.drive.eligible_notice"))
         self.lbl_warning.setStyleSheet("color: gray; font-size: 11px;")
         layout.addWidget(self.lbl_warning)
 
@@ -163,9 +162,9 @@ class DriveSelectorCard(CardFrame):
         self.combo_drives.clear()
         if not devices:
             msg = (
-                "Nenhum pendrive USB detectado (desmarque 'Ocultar discos grandes' caso use HD/SSD)"
+                tr("ui.drive.none_detected_filtered")
                 if self.is_hide_large_drives_active()
-                else "Nenhum pendrive USB removível detectado"
+                else tr("ui.drive.none_detected")
             )
             self.combo_drives.addItem(msg)
             self.combo_drives.setEnabled(False)
@@ -201,13 +200,13 @@ class OptionsCard(CardFrame):
     def _setup_ui(self) -> None:
         layout = QVBoxLayout(self)
 
-        title = QLabel("<b>3. Opções de Formatação e Boot</b>")
+        title = QLabel(tr("ui.options.title"))
         layout.addWidget(title)
 
         row = QHBoxLayout()
-        self.rb_fat32 = QRadioButton("FAT32 (Recomendado - UEFI + Legacy BIOS)")
+        self.rb_fat32 = QRadioButton(tr("ui.options.fat32_recommended"))
         self.rb_fat32.setChecked(True)
-        self.rb_ntfs = QRadioButton("NTFS")
+        self.rb_ntfs = QRadioButton(tr("ui.options.ntfs"))
 
         self.fs_group = QButtonGroup(self)
         self.fs_group.addButton(self.rb_fat32)
@@ -238,7 +237,7 @@ class ProgressCard(CardFrame):
         layout = QVBoxLayout(self)
 
         row_header = QHBoxLayout()
-        self.lbl_stage = QLabel("Pronto para iniciar gravação.")
+        self.lbl_stage = QLabel(tr("ui.progress.ready"))
         self.lbl_stage.setStyleSheet("font-weight: bold; color: #0f172a;")
         self.lbl_speed = QLabel("")
         self.lbl_speed.setStyleSheet("color: #0284c7; font-weight: bold; font-size: 11px;")
@@ -277,7 +276,7 @@ class ProgressCard(CardFrame):
     def reset(self) -> None:
         self.progress_bar.setValue(0)
         self.progress_bar.setFormat("%p%")
-        self.lbl_stage.setText("Pronto para iniciar gravação.")
+        self.lbl_stage.setText(tr("ui.progress.ready"))
         self.lbl_speed.setText("")
 
 
@@ -293,11 +292,11 @@ class LogConsoleDrawer(QWidget):
         layout.setContentsMargins(0, 0, 0, 0)
 
         header = QHBoxLayout()
-        self.btn_toggle = QPushButton("▼ Ocultar Logs")
+        self.btn_toggle = QPushButton(tr("ui.log.hide_button"))
         self.btn_toggle.clicked.connect(self._toggle_view)
         header.addWidget(self.btn_toggle)
 
-        btn_copy = QPushButton("Copiar Logs")
+        btn_copy = QPushButton(tr("ui.log.copy_button"))
         btn_copy.clicked.connect(self._copy_logs)
         header.addWidget(btn_copy)
         header.addStretch()
@@ -321,10 +320,10 @@ class LogConsoleDrawer(QWidget):
     def _toggle_view(self) -> None:
         if self.text_edit.isVisible():
             self.text_edit.hide()
-            self.btn_toggle.setText("▶ Exibir Logs")
+            self.btn_toggle.setText(tr("ui.log.show_button"))
         else:
             self.text_edit.show()
-            self.btn_toggle.setText("▼ Ocultar Logs")
+            self.btn_toggle.setText(tr("ui.log.hide_button"))
 
     def _copy_logs(self) -> None:
         from PySide6.QtWidgets import QApplication

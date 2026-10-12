@@ -154,7 +154,7 @@ def test_check_same_disk_collision():
         assert res.has_collision
         assert res.source_parent_disk == "/dev/sdc"
         assert res.target_parent_disk == "/dev/sdc"
-        assert "mesmo disco" in res.message.lower()
+        assert any(w in res.message.lower() for w in ("mesmo disco", "same physical disk"))
 
     # No collision: ISO on /dev/nvme0n1p2, target is /dev/sdc
     with patch.object(dm, "resolve_file_source_block_device", return_value="/dev/nvme0n1p2"):
