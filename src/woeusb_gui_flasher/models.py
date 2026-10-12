@@ -6,6 +6,8 @@ from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
 
+from woeusb_gui_flasher.i18n import tr
+
 
 class FileSystemType(str, Enum):
     """Supported target filesystem types."""
@@ -134,16 +136,19 @@ class BurnConfiguration:
         """Validates configuration sanity before execution."""
         if not self.target_device.is_eligible_target():
             raise ValueError(
-                f"O dispositivo de destino {self.target_device.path} não é elegível para gravação."
+                tr("model.validation.ineligible_device", device_path=self.target_device.path)
             )
         if not self.iso.file_path.is_file():
             raise FileNotFoundError(
-                f"O arquivo de imagem ISO '{self.iso.file_path}' não foi encontrado."
+                tr("model.validation.iso_not_found", iso_path=self.iso.file_path)
             )
         if self.target_device.size_bytes < self.iso.size_bytes:
             raise ValueError(
-                f"Espaço insuficiente: o pendrive possui {self.target_device.size_human}, "
-                f"mas a ISO requer {self.iso.size_human}."
+                tr(
+                    "model.validation.insufficient_space",
+                    device_size=self.target_device.size_human,
+                    iso_size=self.iso.size_human,
+                )
             )
 
         from woeusb_gui_flasher.disk_manager import DiskManager
@@ -158,7 +163,7 @@ class BurnOperationState:
     """Current real-time state of the burning operation."""
 
     stage: BurnStage = BurnStage.IDLE
-    stage_description: str = "Pronto para iniciar."
+    stage_description: str = field(default_factory=lambda: tr("ui.progress.ready"))
     progress_percent: float = 0.0
     bytes_written: int = 0
     total_bytes: int = 0
