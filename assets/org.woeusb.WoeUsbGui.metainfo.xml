@@ -5,19 +5,31 @@
   <project_license>GPL-3.0-or-later</project_license>
   <name>WoeUSB-GUI</name>
   <summary>Create bootable Windows USB drives on Linux</summary>
+  <summary xml:lang="pt_BR">Crie pendrives inicializáveis do Windows no Linux</summary>
   <description>
     <p>
       WoeUSB-GUI is a modern, responsive Linux desktop application for creating bootable Windows USB installation media from ISO images.
     </p>
+    <p xml:lang="pt_BR">
+      O WoeUSB-GUI é um aplicativo Linux moderno e responsivo para criar mídias de instalação USB inicializáveis do Windows a partir de imagens ISO.
+    </p>
     <p>
       Designed to operate safely and reliably across modern Linux distributions (Arch Linux, Fedora, Ubuntu, Debian, BigLinux, and Manjaro), packaged universally as a Flatpak:
     </p>
+    <p xml:lang="pt_BR">
+      Projetado para operar com segurança e confiabilidade nas distribuições Linux modernas (Arch Linux, Fedora, Ubuntu, Debian, BigLinux e Manjaro), empacotado universalmente como Flatpak:
+    </p>
     <ul>
       <li>Strictly filters removable USB drives (&gt;= 2 GB), completely hiding and protecting system disks and partitions</li>
+      <li xml:lang="pt_BR">Filtra estritamente pendrives USB removíveis (&gt;= 2 GB), ocultando e protegendo completamente discos e partições do sistema</li>
       <li>Extracts Windows ISO files directly in user space without requiring loop mounts or elevated privileges</li>
+      <li xml:lang="pt_BR">Extrai arquivos ISO do Windows diretamente em espaço de usuário sem exigir montagens loop ou privilégios elevados</li>
       <li>Automatically splits install.wim files larger than 4 GB into .swm parts for full FAT32 UEFI Secure Boot compatibility</li>
+      <li xml:lang="pt_BR">Divide automaticamente arquivos install.wim maiores que 4 GB em partes .swm para compatibilidade total com FAT32 UEFI Secure Boot</li>
       <li>Handles drive formatting and mounting via standard unprivileged UDisks2 D-Bus daemon</li>
+      <li xml:lang="pt_BR">Realiza formatação e montagem de unidades via daemon padrão UDisks2 D-Bus sem privilégios de superusuário</li>
       <li>Real-time asynchronous progress reporting, speed estimation, and detailed diagnostic logs</li>
+      <li xml:lang="pt_BR">Relatório de progresso assíncrono em tempo real, estimativa de velocidade e logs detalhados de diagnóstico</li>
     </ul>
   </description>
   <launchable type="desktop-id">org.woeusb.WoeUsbGui.desktop</launchable>
@@ -33,6 +45,7 @@
     <screenshot type="default">
       <image>https://raw.githubusercontent.com/castrocristiano/woeusb-gui-flasher/main/assets/screenshots/main-window.png</image>
       <caption>Main application interface showing ISO selection and target USB device</caption>
+      <caption xml:lang="pt_BR">Interface principal do aplicativo exibindo a seleção de ISO e o pendrive USB de destino</caption>
     </screenshot>
   </screenshots>
   <releases>

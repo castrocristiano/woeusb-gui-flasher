@@ -16,6 +16,7 @@ from PySide6.QtWidgets import (
 
 from woeusb_gui_flasher.burn_engine import BurnWorker
 from woeusb_gui_flasher.disk_manager import DiskManager
+from woeusb_gui_flasher.i18n import tr
 from woeusb_gui_flasher.models import (
     BurnConfiguration,
     StorageDevice,
@@ -37,7 +38,7 @@ class MainWindow(QMainWindow):
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
-        self.setWindowTitle("WoeUSB-GUI Flasher")
+        self.setWindowTitle(tr("ui.main.window_title"))
         self.resize(650, 720)
 
         self.disk_manager = DiskManager()
@@ -95,7 +96,7 @@ class MainWindow(QMainWindow):
 
         # Action Buttons
         row_actions = QHBoxLayout()
-        self.btn_burn = QPushButton("Iniciar Gravação")
+        self.btn_burn = QPushButton(tr("ui.main.start_burn_button"))
         self.btn_burn.setStyleSheet(
             """
             QPushButton {
@@ -117,7 +118,7 @@ class MainWindow(QMainWindow):
         self.btn_burn.clicked.connect(self._on_burn_clicked)
         row_actions.addWidget(self.btn_burn, stretch=1)
 
-        self.btn_cancel = QPushButton("Cancelar Operação")
+        self.btn_cancel = QPushButton(tr("ui.main.cancel_button"))
         self.btn_cancel.setStyleSheet(
             """
             QPushButton {
@@ -180,25 +181,23 @@ class MainWindow(QMainWindow):
         self.btn_burn.setEnabled(ready)
 
     def _on_burn_clicked(self) -> None:
-        """Handles click on 'Iniciar Gravação' with safety confirmation."""
+        """Handles click on 'Start Burn' with safety confirmation."""
         if not self._selected_iso or not self._selected_drive:
             return
 
         # Modal Safety Confirmation (NON-NEGOTIABLE)
         dev = self._selected_drive
-        msg = (
-            f"<b>ATENÇÃO: OPERAÇÃO DESTRUTIVA E IRREVERSÍVEL!</b><br><br>"
-            f"Você está prestes a formatar o dispositivo selecionado:<br>"
-            f"• <b>Caminho:</b> {dev.path}<br>"
-            f"• <b>Modelo / Fabricante:</b> {dev.vendor} {dev.model}<br>"
-            f"• <b>Capacidade:</b> {dev.size_human}<br><br>"
-            f"<b>TODOS OS DADOS CONTIDOS NESTE PENDRIVE SERÃO APAGADOS PERMANENTEMENTE.</b><br><br>"
-            f"Deseja realmente continuar?"
+        msg = tr(
+            "ui.main.confirm_format_body",
+            path=dev.path,
+            vendor=dev.vendor,
+            model=dev.model,
+            size=dev.size_human,
         )
 
         reply = QMessageBox.warning(
             self,
-            "Confirmar Formatação de Mídia USB",
+            tr("ui.main.confirm_format_title"),
             msg,
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
             QMessageBox.StandardButton.No,
@@ -233,12 +232,12 @@ class MainWindow(QMainWindow):
         self._current_worker.start()
 
     def _on_cancel_clicked(self) -> None:
-        """Handles click on 'Cancelar Operação'."""
+        """Handles click on 'Cancel Operation'."""
         if self._current_worker:
             reply = QMessageBox.question(
                 self,
-                "Confirmar Cancelamento",
-                "Tem certeza que deseja cancelar a gravação em andamento?",
+                tr("ui.main.confirm_cancel_title"),
+                tr("ui.main.confirm_cancel_body"),
                 QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
             )
             if reply == QMessageBox.StandardButton.Yes:
@@ -259,12 +258,12 @@ class MainWindow(QMainWindow):
         if success:
             QMessageBox.information(
                 self,
-                "Gravação Concluída",
-                f"Sucesso!\n{message}",
+                tr("ui.main.finished_success_title"),
+                tr("ui.main.finished_success_body", message=message),
             )
         else:
             QMessageBox.critical(
                 self,
-                "Operação Não Concluída",
-                f"Aviso:\n{message}",
+                tr("ui.main.finished_failure_title"),
+                tr("ui.main.finished_failure_body", message=message),
             )

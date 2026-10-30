@@ -32,3 +32,24 @@ def test_flatpak_manifest_contract():
     assert "wimlib" in module_names
     assert "p7zip" in module_names
     assert "woeusb-gui" in module_names
+
+
+def test_desktop_and_metainfo_localization_contract():
+    base_dir = Path(__file__).resolve().parent.parent
+    desktop_file = base_dir / "assets" / "org.woeusb.WoeUsbGui.desktop"
+    metainfo_file = base_dir / "assets" / "org.woeusb.WoeUsbGui.metainfo.xml"
+    locales_dir = base_dir / "locales"
+
+    assert desktop_file.is_file()
+    desktop_content = desktop_file.read_text(encoding="utf-8")
+    assert "Comment=Universal Windows USB bootable flasher for Linux" in desktop_content
+    assert "Comment[pt_BR]=" in desktop_content
+    assert "Keywords[pt_BR]=" in desktop_content
+
+    assert metainfo_file.is_file()
+    metainfo_content = metainfo_file.read_text(encoding="utf-8")
+    assert "<summary>Create bootable Windows USB drives on Linux</summary>" in metainfo_content
+    assert 'xml:lang="pt_BR"' in metainfo_content
+
+    assert (locales_dir / "en.lang").is_file()
+    assert (locales_dir / "pt_BR.lang").is_file()

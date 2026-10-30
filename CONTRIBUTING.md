@@ -14,7 +14,20 @@ Bug reports, feature ideas, translations and pull requests are welcome.
 
 ## Setup
 
-Requirements: Python 3.11+, [uv](https://docs.astral.sh/uv/), and `p7zip`, `wimlib`, `udisks2`, `dosfstools`.
+Requirements: Python 3.11+, `venv` + `pip` (or [uv](https://docs.astral.sh/uv/)), and `p7zip`, `wimlib`, `udisks2`, `dosfstools`.
+
+### Standard `venv` + `pip`
+
+```bash
+git clone https://github.com/castrocristiano/woeusb-gui-flasher.git
+cd woeusb-gui-flasher
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -e . --group dev
+woeusb-gui   # or ./run.sh
+```
+
+### Using `uv`
 
 ```bash
 git clone https://github.com/castrocristiano/woeusb-gui-flasher.git
@@ -27,10 +40,12 @@ uv run woeusb-gui   # or ./run.sh
 
 ## Checks (same as CI)
 
+With `.venv` activated (or prefixing with `uv run`):
+
 ```bash
-uv run ruff check .
-uv run ruff format --check .
-QT_QPA_PLATFORM=offscreen uv run pytest -v --cov=src --cov-report=xml:coverage.xml
+ruff check .
+ruff format --check .
+QT_QPA_PLATFORM=offscreen pytest -v --cov=src --cov-report=xml:coverage.xml
 
 desktop-file-validate assets/org.woeusb.WoeUsbGui.desktop
 appstreamcli validate --no-net --pedantic assets/org.woeusb.WoeUsbGui.metainfo.xml

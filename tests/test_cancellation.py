@@ -56,7 +56,7 @@ def test_burn_worker_cancel_before_run(qapp, tmp_path):
     assert len(finished_results) == 1
     success, message = finished_results[0]
     assert success is False
-    assert "cancelada" in message.lower()
+    assert any(w in message.lower() for w in ("cancelada", "cancelled"))
 
 
 def test_burn_worker_cancels_active_process(qapp, tmp_path):

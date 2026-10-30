@@ -192,7 +192,7 @@ def test_burn_engine_extract_line_and_handlers(qapp, tmp_path):
 
     worker._handle_7z_line("50% 1234 files", pct_pattern, tracker)
     assert len(progs) == 1
-    assert "Copiando arquivos: 50%" in progs[0][1]
+    assert any(s in progs[0][1] for s in ("Copiando arquivos: 50%", "Copying files: 50%"))
 
     worker._handle_7z_line("Arbitrary log message", pct_pattern, tracker)
     assert "Arbitrary log message" in logs
@@ -200,4 +200,6 @@ def test_burn_engine_extract_line_and_handlers(qapp, tmp_path):
     # Wimlib line
     worker._handle_wimlib_line("75%", pct_pattern, tracker, 10_000_000)
     assert len(progs) == 2
-    assert "Dividindo install.wim: 75%" in progs[1][1]
+    assert any(
+        s in progs[1][1] for s in ("Dividindo install.wim: 75%", "Splitting install.wim: 75%")
+    )

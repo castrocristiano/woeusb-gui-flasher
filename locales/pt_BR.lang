@@ -1,0 +1,124 @@
+# ==============================================================================
+# WoeUSB-GUI Flasher — Catálogo de Tradução Português do Brasil (pt_BR)
+# Formato: chave = valor (texto puro UTF-8)
+# - Linhas iniciadas com '#' são comentários.
+# - Placeholders nomeados usam {nome} e podem ser reordenados livremente.
+# - A sequência '\n' produz uma quebra de linha.
+# - Formas plurais usam '.one' (count == 1) e '.other' (count != 1).
+# ==============================================================================
+
+# --- CLI & Entrada da Aplicação ---
+app.cli.description = WoeUSB GUI Flasher — Ferramenta universal de criação de USB inicializável do Windows no Linux.
+app.cli.verbose_help = Habilitar logs detalhados de depuração
+
+# --- Domínio & Erros de Validação ---
+model.validation.ineligible_device = O dispositivo de destino {device_path} não é elegível para gravação.
+model.validation.iso_not_found = O arquivo de imagem ISO '{iso_path}' não foi encontrado.
+model.validation.insufficient_space = Espaço insuficiente: o pendrive possui {device_size}, mas a ISO requer {iso_size}.
+
+# --- Descoberta de Discos & Proteção contra Colisão de Mesmo Disco ---
+disk.collision.no_block_device = Origem em sistema de arquivos sem dispositivo de bloco direto.
+disk.collision.same_disk = A imagem ISO selecionada ({iso_name}) está armazenada no mesmo disco físico ({source_parent}) que o dispositivo de destino ({target_path}). Para evitar perda de dados e corrupção, selecione outro pendrive ou transfira a ISO para outro disco.
+disk.collision.different_disks = Origem e destino em discos físicos distintos.
+device.partition_count.one = {count} partição
+device.partition_count.other = {count} partições
+
+# --- Motor de Gravação: Estágios, Progresso & Logs de Execução ---
+burn.log.cancel_requested = Solicitação de cancelamento recebida pelo usuário...
+burn.log.critical_error = ERRO CRÍTICO: {error}
+burn.status.operation_failed = Falha na operação: {error}
+burn.log.banner_start = === Iniciando WoeUSB GUI Flasher ===
+burn.log.selected_iso = ISO selecionada: {iso_path} ({iso_size})
+burn.log.target_device = Dispositivo alvo: {device_path} ({device_size})
+burn.log.filesystem = Sistema de arquivos: {filesystem}
+burn.stage.validating = Validando requisitos e imagens...
+burn.stage.unmounting = Desmontando partições existentes...
+burn.log.unmounting_active = Desmontando partições ativas de {device_path}...
+burn.stage.partitioning = Criando tabela de partições e formatando...
+burn.stage.extracting_iso = Extraindo arquivos da imagem ISO...
+burn.stage.splitting_wim = Verificando tamanho da imagem de instalação...
+burn.stage.configuring_boot = Configurando bootloader UEFI/BIOS...
+burn.stage.finalizing = Sincronizando buffers de disco (sync)...
+burn.log.flushing_buffers = Garantindo escrita de todos os buffers em disco...
+burn.stage.completed = Concluído com sucesso!
+burn.status.completed = Gravação finalizada com sucesso!
+burn.log.completed_banner = === Gravação concluída com sucesso! Pode remover o pendrive. ===
+burn.result.success_message = Pendrive inicializável do Windows criado com sucesso!
+burn.stage.cancelled_by_user = Operação cancelada pelo usuário.
+burn.status.cancelled = Operação cancelada.
+burn.log.cancelled_banner = === Processo cancelado pelo usuário. Limpeza concluída. ===
+burn.log.dry_run_formatting = [DRY-RUN] Formatando {device_path} como {filesystem} com rótulo '{label}'...
+burn.log.formatting_partition = Formatando partição {partition} como {filesystem}...
+burn.log.mounting_partition = Montando partição de destino...
+burn.log.formatted_udisksctl = Partição formatada via udisksctl: {output}
+burn.log.formatted_gdbus = Partição formatada via UDisks2 (D-Bus): {partition}
+burn.log.udisks2_format_warning = Aviso UDisks2 format: {output}
+burn.error.format_failed = Falha ao formatar partição: {output}
+burn.log.formatted_mkfs = Partição formatada com sucesso via mkfs: {tool}
+burn.log.mounted_udisksctl = Montado via udisksctl em {mount_path}
+burn.log.mounted_gdbus = Montado via UDisks2 (D-Bus) em {mount_path}
+burn.error.missing_7z = O utilitário '7z' (p7zip) é necessário mas não foi encontrado no sistema.
+burn.log.starting_7z = Iniciando extração com 7z para {mount_path}...
+burn.error.extract_7z_failed = A extração dos arquivos com 7z falhou com código {returncode}
+burn.log.dry_run_extract = [DRY-RUN] Simulando extração de arquivos...
+burn.log.wim_excluded_fat32 = install.wim > 4 GB: excluindo da extração direta FAT32 para evitar erro de limite de 4 GB...
+burn.progress.copying_files = Copiando arquivos: {percent}% ({transferred} / {total})
+burn.progress.speed_eta = Escrita: {speed} MB/s | Restante: {eta}
+burn.log.copy_milestone = [COPIA] {stage_desc} | Velocidade: {speed} MB/s | ETA: {eta}
+burn.log.wim_split_starting = install.wim possui {size_gb} GB (> 4 GB). Iniciando divisão com wimlib-imagex...
+burn.error.missing_wimlib = O utilitário 'wimlib-imagex' é necessário para dividir arquivos WIM > 4 GB no FAT32.
+burn.log.wim_split_completed = Divisão do install.wim concluída com sucesso! Volumes .swm criados.
+burn.log.wim_split_not_needed = install.wim não ultrapassa o limite de 4 GB do FAT32. Divisão desnecessária.
+burn.log.extracting_wim_temp = Extraindo install.wim para armazenamento temporário em {temp_dir}...
+burn.error.extract_wim_failed = Falha ao extrair install.wim: código {returncode}
+burn.progress.splitting_wim = Dividindo install.wim: {percent}% ({transferred} / {total})
+burn.log.splitting_wim_volumes = Dividindo install.wim em volumes .swm de {chunk_mb} MB diretamente no pendrive...
+burn.log.executing_cmd = Executando: {cmd}
+burn.error.wim_split_failed = Falha ao dividir install.wim com código {returncode}
+burn.log.bootloader_copy_fallback = Copiando {source_efi} para /efi/boot/{target_efi} para compatibilidade UEFI...
+burn.log.bootloader_missing_warning = Aviso: /efi/boot/{target_efi} não encontrado na mídia. Bootloader legado pode ser necessário.
+burn.log.bootloader_verified = Bootloader UEFI verificado com sucesso: /efi/boot/{target_efi} presente.
+
+# --- UI: Cartão Seletor de ISO ---
+ui.iso.title = <b>1. Imagem de Instalação do Windows (ISO)</b>
+ui.iso.none_selected = Nenhum arquivo ISO selecionado...
+ui.iso.browse_button = Procurar...
+ui.iso.dialog_title = Selecionar Imagem ISO do Windows
+ui.iso.dialog_filter = Imagens de Disco (*.iso);;Todos os Arquivos (*)
+ui.iso.details_size = Tamanho: {size}
+ui.iso.details_wim_detected =  | Imagem: install.wim detectado
+ui.iso.details_esd_detected =  | Imagem: install.esd detectado
+
+# --- UI: Cartão Seletor de Pendrive ---
+ui.drive.title = <b>2. Pendrive / Mídia USB de Destino</b>
+ui.drive.refresh_button = Atualizar
+ui.drive.hide_large_checkbox = Ocultar discos grandes (> 64 GB)
+ui.drive.hide_large_tooltip = Oculta discos rígidos externos e SSDs de grande capacidade para evitar seleção acidental de mídias de backup.
+ui.drive.eligible_notice = Apenas pendrives USB removíveis elegíveis são exibidos.
+ui.drive.none_detected_filtered = Nenhum pendrive USB detectado (desmarque 'Ocultar discos grandes' caso use HD/SSD)
+ui.drive.none_detected = Nenhum pendrive USB removível detectado
+
+# --- UI: Cartão de Opções de Formatação e Boot ---
+ui.options.title = <b>3. Opções de Formatação e Boot</b>
+ui.options.fat32_recommended = FAT32 (Recomendado - UEFI + Legacy BIOS)
+ui.options.ntfs = NTFS
+
+# --- UI: Cartão de Progresso & Gaveta de Logs ---
+ui.progress.ready = Pronto para iniciar gravação.
+ui.log.hide_button = ▼ Ocultar Logs
+ui.log.show_button = ▶ Exibir Logs
+ui.log.copy_button = Copiar Logs
+
+# --- UI: Janela Principal & Diálogos ---
+ui.main.window_title = WoeUSB-GUI Flasher
+ui.main.start_burn_button = Iniciar Gravação
+ui.main.cancel_button = Cancelar Operação
+ui.main.confirm_format_title = Confirmar Formatação de Mídia USB
+ui.main.confirm_format_body = <b>ATENÇÃO: OPERAÇÃO DESTRUTIVA E IRREVERSÍVEL!</b><br><br>Você está prestes a formatar o dispositivo selecionado:<br>• <b>Caminho:</b> {path}<br>• <b>Modelo / Fabricante:</b> {vendor} {model}<br>• <b>Capacidade:</b> {size}<br><br><b>TODOS OS DADOS CONTIDOS NESTE PENDRIVE SERÃO APAGADOS PERMANENTEMENTE.</b><br><br>Deseja realmente continuar?
+ui.main.confirm_cancel_title = Confirmar Cancelamento
+ui.main.confirm_cancel_body = Tem certeza que deseja cancelar a gravação em andamento?
+ui.main.finished_success_title = Gravação Concluída
+ui.main.finished_success_body = Sucesso!\n{message}
+ui.main.finished_failure_title = Operação Não Concluída
+ui.main.finished_failure_body = Aviso:\n{message}
+

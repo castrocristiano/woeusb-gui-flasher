@@ -391,8 +391,8 @@ def test_stream_output_chunks_cancel_terminates(qapp, tmp_path):
     worker = make_worker(tmp_path)
     worker._abort_requested = True
     proc = FakeProcess("line\n")
-    handled = []
-    worker._stream_output_chunks(proc, handled.append)
+    handled: list[str] = []
+    worker._stream_output_chunks(proc, handled.append)  # type: ignore[arg-type]
     assert proc.terminated is True
     assert handled == []
 
@@ -522,7 +522,7 @@ def test_configure_bootloader_variants(qapp, tmp_path):
 
     # Missing everything -> warning
     worker._configure_bootloader(tmp_path)
-    assert any("Aviso" in line for line in logs)
+    assert any(("Aviso" in line or "Warning" in line) for line in logs)
 
     # Fallback bootmgfw copy
     loader = tmp_path / "efi" / "microsoft" / "boot" / "bootmgfw.efi"
@@ -534,7 +534,7 @@ def test_configure_bootloader_variants(qapp, tmp_path):
     # Already present
     logs.clear()
     worker._configure_bootloader(tmp_path)
-    assert any("verificado" in line for line in logs)
+    assert any(("verificado" in line or "verified" in line) for line in logs)
 
 
 # --- Cleanup ---

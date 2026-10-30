@@ -19,8 +19,9 @@ def qapp():
     return app
 
 
+@pytest.hookimpl(trylast=True)
 def pytest_sessionfinish(session, exitstatus):
-    """Clean exit to prevent PySide6 ABI shutdown crash on Python 3.14."""
-    import os
+    """Clean exit to prevent PySide6 C++ destructor segfault at interpreter shutdown."""
+    import atexit
 
-    os._exit(exitstatus)
+    atexit.register(os._exit, int(exitstatus))

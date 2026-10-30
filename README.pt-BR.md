@@ -64,8 +64,27 @@ flatpak run org.woeusb.WoeUsbGui
 ### 2. Executar a partir do código-fonte (desenvolvimento)
 
 Requisitos:
-- Python 3.11+ e [uv](https://docs.astral.sh/uv/) (ou `venv` + `pip`)
+- Python 3.11+ e `venv` + `pip` (ou [uv](https://docs.astral.sh/uv/))
 - Ferramentas do sistema: `p7zip` (`7z`), `wimlib`, `dosfstools` (`mkfs.vfat`), `udisks2`
+
+#### Opção A: `venv` padrão do Python + `pip`
+
+```bash
+git clone https://github.com/castrocristiano/woeusb-gui-flasher.git
+cd woeusb-gui-flasher
+
+# Criar e ativar o ambiente virtual
+python3 -m venv .venv
+source .venv/bin/activate
+
+# Instalar o projeto em modo editável e as dependências de desenvolvimento
+pip install -e . --group dev
+
+# Executar a aplicação
+woeusb-gui               # ou: ./run.sh
+```
+
+#### Opção B: Usando `uv`
 
 ```bash
 git clone https://github.com/castrocristiano/woeusb-gui-flasher.git
@@ -91,13 +110,15 @@ uv run woeusb-gui        # ou: ./run.sh
 
 ## 🧪 Testes e Qualidade
 
+Com o `.venv` ativado (ou prefixando os comandos com `uv run`):
+
 ```bash
 # Lint e verificação de formatação (igual ao CI)
-uv run ruff check .
-uv run ruff format --check .
+ruff check .
+ruff format --check .
 
 # Testes (headless) com cobertura
-QT_QPA_PLATFORM=offscreen uv run pytest -v --cov=src --cov-report=xml:coverage.xml
+QT_QPA_PLATFORM=offscreen pytest -v --cov=src --cov-report=xml:coverage.xml
 
 # Arquivo desktop e metadados AppStream
 desktop-file-validate assets/org.woeusb.WoeUsbGui.desktop

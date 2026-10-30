@@ -153,6 +153,13 @@ Flathub requires control over the domain behind the app ID. `org.woeusb` implies
 ### 7.8 Verification and lint
 Run `flatpak-builder-lint` on the manifest and build dir (Section 5) and fix all errors before opening the PR.
 
+### 7.9 Install `locales/` in `org.woeusb.WoeUsbGui.yml` (manual step)
+Per Section 6.1, `org.woeusb.WoeUsbGui.yml` must be edited by hand without AI assistance. Before building or submitting to Flathub, add the following line manually to `build-commands` under the `woeusb-gui` module in `org.woeusb.WoeUsbGui.yml` so the plain-text `.lang` files are installed to `/app/share/woeusb-gui/locales/`:
+
+```yaml
+- install -Dm644 locales/*.lang -t /app/share/woeusb-gui/locales/
+```
+
 ---
 
 ## 8. Submission Steps (manual)

@@ -15,6 +15,7 @@ from pathlib import Path
 from PySide6.QtCore import QThread, Signal
 
 from woeusb_gui_flasher.disk_manager import DiskManager
+from woeusb_gui_flasher.i18n import tr
 from woeusb_gui_flasher.models import (
     BurnConfiguration,
     BurnStage,
@@ -128,7 +129,7 @@ class BurnWorker(QThread):
     def request_cancel(self) -> None:
         """Requests graceful cancellation of the ongoing burn operation."""
         self._abort_requested = True
-        self.emit_log("Solicitação de cancelamento recebida pelo usuário...")
+        self.emit_log(tr("burn.log.cancel_requested"))
         if self._active_process:
             try:
                 self._active_process.terminate()
@@ -190,24 +191,30 @@ class BurnWorker(QThread):
 
         except Exception as exc:
             logger.exception("Burn operation failed:")
-            self.emit_log(f"ERRO CRÍTICO: {exc}")
-            self.emit_status(f"Falha na operação: {exc}", True)
+            self.emit_log(tr("burn.log.critical_error", error=exc))
+            self.emit_status(tr("burn.status.operation_failed", error=exc), True)
             self.operation_finished.emit(False, str(exc))
 
     def _log_initial_banner(self) -> None:
-        self.emit_log("=== Iniciando WoeUSB GUI Flasher ===")
+        self.emit_log(tr("burn.log.banner_start"))
         self.emit_log(
-            f"ISO selecionada: {self.config.iso.file_path} ({self.config.iso.size_human})"
+            tr(
+                "burn.log.selected_iso",
+                iso_path=self.config.iso.file_path,
+                iso_size=self.config.iso.size_human,
+            )
         )
         self.emit_log(
-            f"Dispositivo alvo: {self.config.target_device.path} ({self.config.target_device.size_human})"
+            tr(
+                "burn.log.target_device",
+                device_path=self.config.target_device.path,
+                device_size=self.config.target_device.size_human,
+            )
         )
-        self.emit_log(f"Sistema de arquivos: {self.config.filesystem.value}")
+        self.emit_log(tr("burn.log.filesystem", filesystem=self.config.filesystem.value))
 
     def _step_validate(self) -> bool:
-        self._set_stage(
-            BurnStage.VALIDATING, STAGE_PCT_VALIDATING, "Validando requisitos e imagens..."
-        )
+        self._set_stage(BurnStage.VALIDATING, STAGE_PCT_VALIDATING, tr("burn.stage.validating"))
         self.config.validate()
         if self.is_cancelled():
             self._finish_cancelled()
@@ -215,10 +222,8 @@ class BurnWorker(QThread):
         return True
 
     def _step_unmount(self) -> bool:
-        self._set_stage(
-            BurnStage.UNMOUNTING, STAGE_PCT_UNMOUNTING, "Desmontando partições existentes..."
-        )
-        self.emit_log(f"Desmontando partições ativas de {self.config.target_device.path}...")
+        self._set_stage(BurnStage.UNMOUNTING, STAGE_PCT_UNMOUNTING, tr("burn.stage.unmounting"))
+        self.emit_log(tr("burn.log.unmounting_active", device_path=self.config.target_device.path))
         if not self.dry_run:
             self.disk_manager.unmount_device_partitions(self.config.target_device)
         if self.is_cancelled():
@@ -230,7 +235,7 @@ class BurnWorker(QThread):
         self._set_stage(
             BurnStage.PARTITIONING,
             STAGE_PCT_PARTITIONING,
-            "Criando tabela de partições e formatando...",
+            tr("burn.stage.partitioning"),
         )
         return self._prepare_and_format_drive()
 
@@ -238,7 +243,7 @@ class BurnWorker(QThread):
         self._set_stage(
             BurnStage.EXTRACTING_ISO,
             STAGE_PCT_EXTRACTION_BASE,
-            "Extraindo arquivos da imagem ISO...",
+            tr("burn.stage.extracting_iso"),
         )
         self._extract_iso_contents(target_mount)
         if self.is_cancelled():
@@ -250,7 +255,7 @@ class BurnWorker(QThread):
         self._set_stage(
             BurnStage.SPLITTING_WIM,
             STAGE_PCT_WIM_SPLIT_BASE,
-            "Verificando tamanho da imagem de instalação...",
+            tr("burn.stage.splitting_wim"),
         )
         self._handle_wim_split(target_mount)
         if self.is_cancelled():
@@ -262,7 +267,7 @@ class BurnWorker(QThread):
         self._set_stage(
             BurnStage.CONFIGURING_BOOT,
             STAGE_PCT_CONFIGURING_BOOT,
-            "Configurando bootloader UEFI/BIOS...",
+            tr("burn.stage.configuring_boot"),
         )
         self._configure_bootloader(target_mount)
         if self.is_cancelled():
@@ -271,18 +276,16 @@ class BurnWorker(QThread):
         return True
 
     def _step_finalize(self, target_mount: Path) -> None:
-        self._set_stage(
-            BurnStage.FINALIZING, STAGE_PCT_FINALIZING, "Sincronizando buffers de disco (sync)..."
-        )
-        self.emit_log("Garantindo escrita de todos os buffers em disco...")
+        self._set_stage(BurnStage.FINALIZING, STAGE_PCT_FINALIZING, tr("burn.stage.finalizing"))
+        self.emit_log(tr("burn.log.flushing_buffers"))
         if not self.dry_run:
             subprocess.run(["sync"], check=False)
             self._cleanup_mount(target_mount)
 
-        self.emit_progress(STAGE_PCT_COMPLETED, "Concluído com sucesso!", "")
-        self.emit_status("Gravação finalizada com sucesso!")
-        self.emit_log("=== Gravação concluída com sucesso! Pode remover o pendrive. ===")
-        self.operation_finished.emit(True, "Pendrive inicializável do Windows criado com sucesso!")
+        self.emit_progress(STAGE_PCT_COMPLETED, tr("burn.stage.completed"), "")
+        self.emit_status(tr("burn.status.completed"))
+        self.emit_log(tr("burn.log.completed_banner"))
+        self.operation_finished.emit(True, tr("burn.result.success_message"))
 
     def _finish_cancelled(self) -> None:
         if self._temp_mount_dir and not self.dry_run:
@@ -290,10 +293,10 @@ class BurnWorker(QThread):
                 self._cleanup_mount(self._temp_mount_dir)
             except (OSError, RuntimeError) as e:
                 logger.warning("Error cleaning up mount during cancel: %s", e)
-        self.emit_progress(STAGE_PCT_START, "Operação cancelada pelo usuário.")
-        self.emit_status("Operação cancelada.")
-        self.emit_log("=== Processo cancelado pelo usuário. Limpeza concluída. ===")
-        self.operation_finished.emit(False, "Operação cancelada pelo usuário.")
+        self.emit_progress(STAGE_PCT_START, tr("burn.stage.cancelled_by_user"))
+        self.emit_status(tr("burn.status.cancelled"))
+        self.emit_log(tr("burn.log.cancelled_banner"))
+        self.operation_finished.emit(False, tr("burn.stage.cancelled_by_user"))
 
     def _prepare_and_format_drive(self) -> Path:
         """Partitions and formats the USB thumb drive."""
@@ -303,7 +306,12 @@ class BurnWorker(QThread):
 
         if self.dry_run:
             self.emit_log(
-                f"[DRY-RUN] Formatando {device_path} como {fs_type.value} com rótulo '{label}'..."
+                tr(
+                    "burn.log.dry_run_formatting",
+                    device_path=device_path,
+                    filesystem=fs_type.value,
+                    label=label,
+                )
             )
             MOCK_MOUNT_DIR.mkdir(parents=True, exist_ok=True)
             self._temp_mount_dir = MOCK_MOUNT_DIR
@@ -311,11 +319,17 @@ class BurnWorker(QThread):
 
         target_part = f"{device_path}1" if not device_path.endswith("1") else device_path
         self._target_part = target_part
-        self.emit_log(f"Formatando partição {target_part} como {fs_type.value}...")
+        self.emit_log(
+            tr(
+                "burn.log.formatting_partition",
+                partition=target_part,
+                filesystem=fs_type.value,
+            )
+        )
 
         self._format_partition(target_part, fs_type, label)
 
-        self.emit_log("Montando partição de destino...")
+        self.emit_log(tr("burn.log.mounting_partition"))
         return self._mount_partition(target_part)
 
     def _format_partition(self, target_part: str, fs_type: FileSystemType, label: str) -> None:
@@ -344,7 +358,7 @@ class BurnWorker(QThread):
         ]
         res = subprocess.run(cmd, capture_output=True, text=True, check=False)
         if res.returncode == 0:
-            self.emit_log(f"Partição formatada via udisksctl: {res.stdout.strip()}")
+            self.emit_log(tr("burn.log.formatted_udisksctl", output=res.stdout.strip()))
             return True
         return False
 
@@ -365,9 +379,14 @@ class BurnWorker(QThread):
         ]
         res = subprocess.run(cmd, capture_output=True, text=True, check=False)
         if res.returncode == 0:
-            self.emit_log(f"Partição formatada via UDisks2 (D-Bus): {target_part}")
+            self.emit_log(tr("burn.log.formatted_gdbus", partition=target_part))
             return True
-        self.emit_log(f"Aviso UDisks2 format: {res.stderr.strip() or res.stdout.strip()}")
+        self.emit_log(
+            tr(
+                "burn.log.udisks2_format_warning",
+                output=res.stderr.strip() or res.stdout.strip(),
+            )
+        )
         return False
 
     def _format_via_mkfs_fallback(
@@ -380,8 +399,8 @@ class BurnWorker(QThread):
 
         res = subprocess.run(mkfs_cmd, capture_output=True, text=True, check=False)
         if res.returncode != 0:
-            raise RuntimeError(f"Falha ao formatar partição: {res.stderr or res.stdout}")
-        self.emit_log(f"Partição formatada com sucesso via mkfs: {mkfs_cmd[0]}")
+            raise RuntimeError(tr("burn.error.format_failed", output=res.stderr or res.stdout))
+        self.emit_log(tr("burn.log.formatted_mkfs", tool=mkfs_cmd[0]))
 
     def _mount_partition(self, part_path: str) -> Path:
         """Mounts the formatted partition and returns the mount directory."""
@@ -407,7 +426,7 @@ class BurnWorker(QThread):
             match = re.search(r"at\s+(/\S+)", res.stdout)
             if match:
                 mount_path = Path(match.group(1))
-                self.emit_log(f"Montado via udisksctl em {mount_path}")
+                self.emit_log(tr("burn.log.mounted_udisksctl", mount_path=mount_path))
                 self._temp_mount_dir = mount_path
                 return mount_path
         return None
@@ -431,7 +450,7 @@ class BurnWorker(QThread):
             match = re.search(r"'(/\S+)'", res.stdout)
             if match:
                 mount_path = Path(match.group(1))
-                self.emit_log(f"Montado via UDisks2 (D-Bus) em {mount_path}")
+                self.emit_log(tr("burn.log.mounted_gdbus", mount_path=mount_path))
                 self._temp_mount_dir = mount_path
                 return mount_path
         return None
@@ -440,12 +459,10 @@ class BurnWorker(QThread):
         """Extracts Windows ISO files directly in user space using 7z."""
         seven_z = find_binary("7z")
         if not seven_z and not self.dry_run:
-            raise FileNotFoundError(
-                "O utilitário '7z' (p7zip) é necessário mas não foi encontrado no sistema."
-            )
+            raise FileNotFoundError(tr("burn.error.missing_7z"))
 
         iso_path = str(self.config.iso.file_path)
-        self.emit_log(f"Iniciando extração com 7z para {target_mount}...")
+        self.emit_log(tr("burn.log.starting_7z", mount_path=target_mount))
 
         if self.dry_run:
             self._simulate_dry_run_extraction(target_mount)
@@ -462,12 +479,10 @@ class BurnWorker(QThread):
         self._active_process = None
 
         if process.returncode != 0 and not self.is_cancelled():
-            raise RuntimeError(
-                f"A extração dos arquivos com 7z falhou com código {process.returncode}"
-            )
+            raise RuntimeError(tr("burn.error.extract_7z_failed", returncode=process.returncode))
 
     def _simulate_dry_run_extraction(self, target_mount: Path) -> None:
-        self.emit_log("[DRY-RUN] Simulando extração de arquivos...")
+        self.emit_log(tr("burn.log.dry_run_extract"))
         (target_mount / SOURCES_DIRNAME).mkdir(parents=True, exist_ok=True)
         (target_mount / SOURCES_DIRNAME / INSTALL_WIM_FILENAME).write_bytes(b"wim data" * 1000)
         (target_mount / "efi" / "boot").mkdir(parents=True, exist_ok=True)
@@ -482,9 +497,7 @@ class BurnWorker(QThread):
         )
         cmd = [seven_z, "x", "-bso0", "-bsp1", "-bd"]
         if needs_wim_split:
-            self.emit_log(
-                "install.wim > 4 GB: excluindo da extração direta FAT32 para evitar erro de limite de 4 GB..."
-            )
+            self.emit_log(tr("burn.log.wim_excluded_fat32"))
             cmd.extend([f"-xr!{INSTALL_WIM_FILENAME}", f"-xr!{INSTALL_ESD_FILENAME}"])
         cmd.extend([f"-o{target_mount}", iso_path])
         return cmd
@@ -543,17 +556,28 @@ class BurnWorker(QThread):
         scaled_pct = STAGE_PCT_EXTRACTION_BASE + (current_pct * (STAGE_PCT_EXTRACTION_SPAN / 100.0))
         transferred, speed_mb, eta_str = tracker.compute_metrics(current_pct)
 
-        stage_desc = (
-            f"Copiando arquivos: {current_pct:.0f}% "
-            f"({format_bytes(transferred)} / {format_bytes(tracker.total_bytes)})"
+        stage_desc = tr(
+            "burn.progress.copying_files",
+            percent=f"{current_pct:.0f}",
+            transferred=format_bytes(transferred),
+            total=format_bytes(tracker.total_bytes),
         )
-        speed_desc = f"Escrita: {speed_mb:.1f} MB/s | Restante: {eta_str}"
+        speed_desc = tr(
+            "burn.progress.speed_eta",
+            speed=f"{speed_mb:.1f}",
+            eta=eta_str,
+        )
 
         self.emit_progress(scaled_pct, stage_desc, speed_desc)
 
         if tracker.is_log_milestone(current_pct):
             self.emit_log(
-                f"[COPIA] {stage_desc} | Velocidade: {speed_mb:.1f} MB/s | ETA: {eta_str}"
+                tr(
+                    "burn.log.copy_milestone",
+                    stage_desc=stage_desc,
+                    speed=f"{speed_mb:.1f}",
+                    eta=eta_str,
+                )
             )
 
     def _stream_7z_progress(self, process: subprocess.Popen, tracker: ProgressTracker) -> None:
@@ -573,16 +597,12 @@ class BurnWorker(QThread):
         if not should_split:
             return
 
-        self.emit_log(
-            f"install.wim possui {wim_size / BYTES_PER_GIB:.2f} GB (> 4 GB). Iniciando divisão com wimlib-imagex..."
-        )
+        self.emit_log(tr("burn.log.wim_split_starting", size_gb=f"{wim_size / BYTES_PER_GIB:.2f}"))
 
         wimlib = find_binary("wimlib-imagex")
         seven_z = find_binary("7z")
         if not wimlib and not self.dry_run:
-            raise FileNotFoundError(
-                "O utilitário 'wimlib-imagex' é necessário para dividir arquivos WIM > 4 GB no FAT32."
-            )
+            raise FileNotFoundError(tr("burn.error.missing_wimlib"))
 
         if self.dry_run:
             self._simulate_dry_run_wim_split(sources_dir, existing_wim)
@@ -600,7 +620,7 @@ class BurnWorker(QThread):
 
             self._execute_wimlib_split(wimlib, wim_to_split, dest_swm, wim_size)
 
-            self.emit_log("Divisão do install.wim concluída com sucesso! Volumes .swm criados.")
+            self.emit_log(tr("burn.log.wim_split_completed"))
             if existing_wim.is_file():
                 existing_wim.unlink(missing_ok=True)
         finally:
@@ -614,9 +634,7 @@ class BurnWorker(QThread):
             wim_size = existing_wim.stat().st_size
 
         if wim_size <= MAX_FAT32_FILE_SIZE_BYTES and not existing_wim.is_file():
-            self.emit_log(
-                "install.wim não ultrapassa o limite de 4 GB do FAT32. Divisão desnecessária."
-            )
+            self.emit_log(tr("burn.log.wim_split_not_needed"))
             return False, wim_size, existing_wim
 
         return True, wim_size, existing_wim
@@ -631,7 +649,7 @@ class BurnWorker(QThread):
             existing_wim.unlink(missing_ok=True)
 
     def _extract_wim_to_temp_storage(self, seven_z: str, temp_wim: Path, wim_size: int) -> None:
-        self.emit_log(f"Extraindo install.wim para armazenamento temporário em {TEMP_WIM_DIR}...")
+        self.emit_log(tr("burn.log.extracting_wim_temp", temp_dir=TEMP_WIM_DIR))
         extract_cmd = [
             seven_z,
             "e",
@@ -655,7 +673,7 @@ class BurnWorker(QThread):
         if self.is_cancelled():
             return
         if proc.returncode != 0:
-            raise RuntimeError(f"Falha ao extrair install.wim: código {proc.returncode}")
+            raise RuntimeError(tr("burn.error.extract_wim_failed", returncode=proc.returncode))
 
     def _handle_wimlib_line(
         self,
@@ -672,18 +690,24 @@ class BurnWorker(QThread):
         pct = float(m.group(1))
         scaled_pct = STAGE_PCT_WIM_SPLIT_BASE + (pct * (STAGE_PCT_WIM_SPLIT_SPAN / 100.0))
         transferred, speed_mb, eta_str = tracker.compute_metrics(pct)
-        stage_desc = (
-            f"Dividindo install.wim: {pct:.0f}% "
-            f"({format_bytes(transferred)} / {format_bytes(wim_size)})"
+        stage_desc = tr(
+            "burn.progress.splitting_wim",
+            percent=f"{pct:.0f}",
+            transferred=format_bytes(transferred),
+            total=format_bytes(wim_size),
         )
-        speed_desc = f"Escrita: {speed_mb:.1f} MB/s | Restante: {eta_str}"
+        speed_desc = tr(
+            "burn.progress.speed_eta",
+            speed=f"{speed_mb:.1f}",
+            eta=eta_str,
+        )
         self.emit_progress(scaled_pct, stage_desc, speed_desc)
 
     def _execute_wimlib_split(
         self, wimlib: str, wim_to_split: Path, dest_swm: Path, wim_size: int
     ) -> None:
         self.emit_log(
-            f"Dividindo install.wim em volumes .swm de {DEFAULT_WIM_SPLIT_CHUNK_SIZE_MB} MB diretamente no pendrive..."
+            tr("burn.log.splitting_wim_volumes", chunk_mb=DEFAULT_WIM_SPLIT_CHUNK_SIZE_MB)
         )
         cmd = [
             wimlib,
@@ -692,7 +716,7 @@ class BurnWorker(QThread):
             str(dest_swm),
             DEFAULT_WIM_SPLIT_CHUNK_SIZE_MB,
         ]
-        self.emit_log(f"Executando: {' '.join(cmd)}")
+        self.emit_log(tr("burn.log.executing_cmd", cmd=" ".join(cmd)))
         process = self._spawn_streaming_process(cmd)
         self._active_process = process
 
@@ -709,7 +733,7 @@ class BurnWorker(QThread):
         if self.is_cancelled():
             return
         if process.returncode != 0:
-            raise RuntimeError(f"Falha ao dividir install.wim com código {process.returncode}")
+            raise RuntimeError(tr("burn.error.wim_split_failed", returncode=process.returncode))
 
     def _configure_bootloader(self, target_mount: Path) -> None:
         """Verifies and configures UEFI bootloaders."""
@@ -720,18 +744,20 @@ class BurnWorker(QThread):
             possible_loader = target_mount / "efi" / "microsoft" / "boot" / BOOTMGFW_EFI_FILENAME
             if possible_loader.is_file():
                 self.emit_log(
-                    f"Copiando {BOOTMGFW_EFI_FILENAME} para /efi/boot/{BOOTX64_EFI_FILENAME} para compatibilidade UEFI..."
+                    tr(
+                        "burn.log.bootloader_copy_fallback",
+                        source_efi=BOOTMGFW_EFI_FILENAME,
+                        target_efi=BOOTX64_EFI_FILENAME,
+                    )
                 )
                 efi_boot_dir.mkdir(parents=True, exist_ok=True)
                 shutil.copy2(possible_loader, bootx64)
             else:
                 self.emit_log(
-                    f"Aviso: /efi/boot/{BOOTX64_EFI_FILENAME} não encontrado na mídia. Bootloader legado pode ser necessário."
+                    tr("burn.log.bootloader_missing_warning", target_efi=BOOTX64_EFI_FILENAME)
                 )
         else:
-            self.emit_log(
-                f"Bootloader UEFI verificado com sucesso: /efi/boot/{BOOTX64_EFI_FILENAME} presente."
-            )
+            self.emit_log(tr("burn.log.bootloader_verified", target_efi=BOOTX64_EFI_FILENAME))
 
     def _cleanup_mount(self, mount_dir: Path) -> None:
         """Unmounts the temporary mount directory."""

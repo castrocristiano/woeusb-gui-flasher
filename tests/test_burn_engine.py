@@ -48,7 +48,7 @@ def test_burn_worker_dry_run_execution(qapp, tmp_path):
     assert len(results) == 1
     success, msg = results[0]
     assert success is True
-    assert "sucesso" in msg.lower()
+    assert any(w in msg.lower() for w in ("sucesso", "successfully"))
 
 
 def test_burn_worker_cancellation(qapp, tmp_path):
@@ -81,7 +81,7 @@ def test_burn_worker_cancellation(qapp, tmp_path):
     assert len(results) == 1
     success, msg = results[0]
     assert success is False
-    assert "cancelada" in msg.lower()
+    assert any(w in msg.lower() for w in ("cancelada", "cancelled"))
 
 
 def test_progress_tracker_metrics():

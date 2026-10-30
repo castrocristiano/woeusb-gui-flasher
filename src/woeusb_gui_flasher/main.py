@@ -20,9 +20,11 @@ def main() -> int:
     """Main CLI/GUI launcher entry point."""
     import argparse
 
-    parser = argparse.ArgumentParser(
-        description="WoeUSB GUI Flasher — Universal Windows USB creation tool for Linux."
-    )
+    from woeusb_gui_flasher.i18n import load_catalog, tr
+
+    load_catalog()
+
+    parser = argparse.ArgumentParser(description=tr("app.cli.description"))
     parser.add_argument(
         "--version",
         action="version",
@@ -32,7 +34,7 @@ def main() -> int:
         "--verbose",
         "-v",
         action="store_true",
-        help="Enable detailed debug logs",
+        help=tr("app.cli.verbose_help"),
     )
     args = parser.parse_args()
 
